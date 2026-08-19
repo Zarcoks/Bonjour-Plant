@@ -1,0 +1,15 @@
+# Django and core
+Django==4.2.27
+asgiref==3.10.0
+sqlparse==0.5.3
+
+# WSGI Server
+gunicorn==23.0.0
+whitenoise==6.11.0
+
+# Database
+psycopg2-binary==2.9.11
+
+# Tests
+pytest
+pytest-django

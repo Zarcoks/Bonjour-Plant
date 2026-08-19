@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Bonjour Plant">
+  <rect width="64" height="64" rx="16" fill="#EAF7EF"/>
+  <path d="M32 50V28" stroke="#2F9E62" stroke-width="4" stroke-linecap="round"/>
+  <path d="M32 32C32 22 24 15 15 15c0 10 8 17 17 17z" fill="#2F9E62"/>
+  <path d="M32 38c0-9 7-16 16-16 0 9-7 16-16 16z" fill="#7BC96F"/>
+</svg>
