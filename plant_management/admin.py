@@ -1,3 +1,7 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import AppLog, GrowingPlant, PlantType
+
+admin.site.register(PlantType)
+admin.site.register(GrowingPlant)
+admin.site.register(AppLog)

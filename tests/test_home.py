@@ -2,8 +2,6 @@ import pytest
 from django.urls import reverse
 
 
-# --- Tests ---
-
 @pytest.mark.django_db
 def test_index_page(client):
     response = client.get(reverse("plant_management_index"))

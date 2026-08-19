@@ -1,0 +1,36 @@
+{% extends "plant_management/index.html" %}
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title page-title-sm">Journal</h1>
+      <p class="page-subtitle">Les {{ logs_shown }} dernières logs de l'application, la plus récente en premier.</p>
+    </div>
+  </div>
+
+  {# Every change of a filter refreshes the table alone, and updates the address bar. #}
+  <form class="log-filters"
+        hx-get="{% url 'logs' %}"
+        hx-target="#log-table"
+        hx-swap="innerHTML"
+        hx-trigger="change, keyup changed delay:400ms, submit"
+        hx-push-url="true">
+    {% for field in form %}
+      <div class="plant-field">
+        <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+        {{ field }}
+      </div>
+    {% endfor %}
+    <button class="btn-ghost" type="submit">
+      <i class="bi bi-funnel"></i>
+      Filtrer
+    </button>
+  </form>
+
+  <div id="log-table" class="log-table-wrapper">
+    {% include "plant_management/logs/partials/logs_table.html" %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% comment %}Expanded card: every field, editable in place.{% endcomment %}
+<div class="col" id="plant-type-{{ plant_type.pk }}">
+  <article class="plant-card is-open">
+    <form hx-post="{% url 'plant_type_detail' plant_type.pk %}"
+          hx-target="#plant-type-{{ plant_type.pk }}"
+          hx-swap="outerHTML"
+          hx-encoding="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="plant-card-media">
+        <img src="{{ plant_type.get_photo_url }}" alt="{{ plant_type.plant_name }}">
+      </div>
+
+      <div class="plant-card-body">
+        <div class="plant-field">
+          <label for="{{ form.plant_name.id_for_label }}">{{ form.plant_name.label|capfirst }}</label>
+          {{ form.plant_name }}
+          {% for error in form.plant_name.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+
+        <div class="plant-field-grid">
+          {% for field in form %}
+            {% if field.name != 'plant_name' and field.name != 'photo' %}
+              <div class="plant-field">
+                <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                {{ field }}
+                {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="plant-field">
+          <label for="{{ form.photo.id_for_label }}">
+            <i class="bi bi-camera"></i>
+            Ajouter une photo
+          </label>
+          {{ form.photo }}
+          {% for error in form.photo.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+
+        <div class="card-actions">
+          <button class="btn-ghost" type="button"
+                  hx-get="{% url 'plant_type_card' plant_type.pk %}"
+                  hx-target="#plant-type-{{ plant_type.pk }}"
+                  hx-swap="outerHTML">
+            Annuler
+          </button>
+          <button class="btn-plant" type="submit">
+            <i class="bi bi-check-lg"></i>
+            Valider
+          </button>
+        </div>
+      </div>
+    </form>
+  </article>
+</div>

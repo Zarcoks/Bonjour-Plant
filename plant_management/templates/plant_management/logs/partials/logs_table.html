@@ -1,0 +1,26 @@
+{% comment %}The log table alone, so that HTMX can refresh it on its own.{% endcomment %}
+{% if logs %}
+  <table class="log-table">
+    <thead>
+      <tr>
+        <th class="log-col-level">Niveau</th>
+        <th class="log-col-time">Date</th>
+        <th>Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+        <tr>
+          <td><span class="log-level log-level-{{ log.type|lower }}">{{ log.type }}</span></td>
+          <td class="log-time">{{ log.time|date:"d/m/Y H:i:s" }}</td>
+          <td class="log-message">{{ log.message }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty-state">
+    <i class="bi bi-journal-text"></i>
+    <p>Aucune log ne correspond à ces filtres.</p>
+  </div>
+{% endif %}

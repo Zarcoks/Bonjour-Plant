@@ -1,0 +1,24 @@
+{% comment %}Collapsed card: name, photo and the key figures only.{% endcomment %}
+<div class="col" id="plant-type-{{ plant_type.pk }}">
+  <article class="plant-card"
+           role="button" tabindex="0"
+           hx-get="{% url 'plant_type_detail' plant_type.pk %}"
+           hx-target="#plant-type-{{ plant_type.pk }}"
+           hx-swap="outerHTML"
+           hx-trigger="click, keyup[key=='Enter']">
+    <div class="plant-card-media">
+      <img src="{{ plant_type.get_photo_url }}" alt="{{ plant_type.plant_name }}">
+    </div>
+    <div class="plant-card-body">
+      <h2 class="plant-card-title">{{ plant_type.plant_name }}</h2>
+      <p class="plant-card-meta">
+        <i class="bi bi-basket"></i>
+        Récolte en <strong>{{ plant_type.harvest_days }}</strong> jours
+      </p>
+      <span class="plant-card-hint">
+        Voir et modifier
+        <i class="bi bi-chevron-down"></i>
+      </span>
+    </div>
+  </article>
+</div>

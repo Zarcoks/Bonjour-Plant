@@ -1,0 +1,38 @@
+{% extends "plant_management/index.html" %}
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title page-title-sm">Plant Types</h1>
+      <p class="page-subtitle">Les espèces connues de l'application et leurs conditions idéales.</p>
+    </div>
+    <button class="btn-plant" type="button"
+            hx-get="{% url 'create_plant_type' %}"
+            hx-target="#plant-type-create"
+            hx-swap="innerHTML">
+      <i class="bi bi-plus-lg"></i>
+      Créer
+    </button>
+  </div>
+
+  <div id="plant-type-create"></div>
+
+  <div id="plant-type-grid" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+    {% for plant_type in plant_types %}
+      {% include "plant_management/plant_types/partials/plant_type_card.html" %}
+    {% endfor %}
+  </div>
+
+  {# Always rendered, so the creation answer can always clear it out of band. #}
+  <div id="plant-type-empty">
+    {% if not plant_types %}
+      <div class="empty-state">
+        <i class="bi bi-flower2"></i>
+        <p>Aucun type de plante pour l'instant. Créez le premier !</p>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -8,8 +8,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{% static 'bootstrap.min.css' %}" rel="stylesheet">
+    <link href="{% static 'bootstrap-icons.min.css' %}" rel="stylesheet">
     <link href="{% static 'bonjour-plant.css' %}" rel="stylesheet">
     <link rel="icon" href="{% static 'bonjour-plant-icon.svg' %}">
+    <script src="{% static 'bootstrap.min.js' %}" defer></script>
+    <script src="{% static 'htmx.min.js' %}" defer></script>
     <title>Bonjour Plant</title>
   </head>
   <body>
@@ -23,7 +27,39 @@
           </div>
         </a>
         <nav class="header-nav">
-          <a href="{% url 'plant_management_index' %}" class="nav-link-btn">Accueil</a>
+          <a href="{% url 'plant_management_index' %}" class="nav-link-btn">
+            <i class="bi bi-house-door"></i>
+            Accueil
+          </a>
+          <div class="dropdown">
+            <button class="nav-link-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-grid-3x3-gap"></i>
+              Catalogue
+              <i class="bi bi-chevron-down small"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end plant-dropdown">
+              <li>
+                <a class="dropdown-item" href="{% url 'plant_types' %}">
+                  <i class="bi bi-flower1"></i>
+                  Plant Types
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <span class="dropdown-item disabled">
+                  <i class="bi bi-tree"></i>
+                  Mes plantes
+                  <span class="item-soon">bientôt</span>
+                </span>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{% url 'logs' %}">
+                  <i class="bi bi-journal-text"></i>
+                  Journal
+                </a>
+              </li>
+            </ul>
+          </div>
         </nav>
       </div>
     </header>

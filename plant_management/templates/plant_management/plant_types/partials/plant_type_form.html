@@ -1,0 +1,44 @@
+{% comment %}Creation form, loaded above the card grid.{% endcomment %}
+<div class="plant-form-card">
+  <form hx-post="{% url 'create_plant_type' %}"
+        hx-target="#plant-type-grid"
+        hx-swap="beforeend"
+        hx-encoding="multipart/form-data">
+    {% csrf_token %}
+
+    <h2 class="plant-form-title">
+      <i class="bi bi-flower1"></i>
+      Nouveau type de plante
+    </h2>
+
+    <div class="plant-field-grid plant-field-grid-wide">
+      {% for field in form %}
+        <div class="plant-field {% if field.name == 'plant_name' or field.name == 'photo' %}plant-field-full{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+          {{ field }}
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="field-error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <p class="plant-form-note">
+      <i class="bi bi-info-circle"></i>
+      Sans photo, une illustration par défaut est utilisée.
+    </p>
+
+    <div class="card-actions">
+      <button class="btn-ghost" type="button"
+              onclick="document.getElementById('plant-type-create').innerHTML = '';">
+        Annuler
+      </button>
+      <button class="btn-plant" type="submit">
+        <i class="bi bi-check-lg"></i>
+        Créer
+      </button>
+    </div>
+  </form>
+</div>

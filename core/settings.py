@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "1234")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", default=1)
+DEBUG = os.environ.get("DEBUG", "1").lower() in ("1", "true", "yes", "on")
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(',')
 
@@ -126,10 +126,46 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles/')
 
+# Media files (user uploads, such as the plant type photos)
+# https://docs.djangoproject.com/en/4.2/topics/files/
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Logging
+# The application logger (see the Logging package) writes on the console through
+# the standard library, and in the app_log table through its own code.
+
+DJANGO_LOGLEVEL = os.environ.get("DJANGO_LOGLEVEL", "info").upper()
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'bonjour_plant': {
+            'format': '[{levelname}] [{name}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'bonjour_plant',
+        },
+    },
+    'loggers': {
+        'bonjour_plant': {
+            'handlers': ['console'],
+            'level': DJANGO_LOGLEVEL,
+            'propagate': False,
+        },
+    },
+}
 
 # Proxy settings (for running behind Caddy/nginx)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
