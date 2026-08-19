@@ -511,3 +511,326 @@ body {
 .log-level-info    { background-color: var(--plant-light-green); color: var(--plant-green); }
 .log-level-warning { background-color: var(--sun-light);  color: #97710A; }
 .log-level-error   { background-color: var(--clay-light); color: var(--clay); }
+
+/* ── Growing plants ───────────────────────────────────────── */
+.harvested-toggle .form-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  margin: 0;
+  background-color: #fff;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.harvested-toggle .form-check-input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.harvested-toggle .form-check-input:checked {
+  background-color: var(--plant-green);
+  border-color: var(--plant-green);
+}
+
+.harvested-toggle .form-check-label {
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--plant-deep-green);
+  cursor: pointer;
+}
+
+.growing-plant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.growing-card {
+  overflow: hidden;
+  background-color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+
+.growing-card:not(.is-open) { cursor: pointer; }
+
+.growing-card:not(.is-open):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.growing-card:not(.is-open):hover .growing-card-hint { color: var(--plant-green); }
+
+.growing-card.is-open {
+  box-shadow: var(--shadow-lg);
+  outline: 2px solid var(--plant-leaf);
+}
+
+.growing-card.is-harvested { opacity: .82; }
+
+.growing-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  background-color: var(--plant-light-green);
+  color: var(--plant-deep-green);
+  font-size: .82rem;
+  font-weight: 500;
+}
+
+.growing-card-head i { color: var(--plant-green); }
+
+.growing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--sun-light);
+  color: #97710A;
+  font-size: .72rem;
+  font-weight: 600;
+}
+
+.growing-badge i { color: #97710A; }
+
+.growing-card-main {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.growing-card-media {
+  position: relative;
+  flex: 0 0 260px;
+  background-color: var(--plant-light-green);
+}
+
+.growing-card-media img {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  object-fit: cover;
+  display: block;
+}
+
+.growing-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 20px 24px;
+}
+
+.growing-card-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--plant-deep-green);
+}
+
+.growing-card-type {
+  margin: 2px 0 0;
+  font-size: .85rem;
+  color: var(--plant-green);
+  font-weight: 500;
+}
+
+.growing-card-watering {
+  margin: 14px 0 0;
+  font-size: .9rem;
+  color: var(--gray-500);
+}
+
+.growing-card-watering i { color: var(--plant-leaf); }
+
+.growing-card-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--gray-400);
+  transition: color .18s ease;
+}
+
+/* ── Automatic light button ───────────────────────────────── */
+.light-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 8px 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-pill);
+  background-color: var(--gray-50);
+  color: var(--gray-500);
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+
+.light-btn:hover { border-color: var(--plant-leaf); }
+
+.light-btn.is-on {
+  background-color: var(--sun-light);
+  border-color: var(--sun);
+  color: #97710A;
+}
+
+.light-state {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background-color: rgba(255,255,255,.75);
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ── Signs laid over the photo ────────────────────────────── */
+.plant-signs {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plant-sign {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: rgba(255,255,255,.92);
+  box-shadow: var(--shadow-sm);
+}
+
+.plant-sign-sun   { color: #E0A80C; }
+.plant-sign-shade { color: var(--gray-500); }
+.plant-sign-hot   { color: var(--clay); }
+.plant-sign-cold  { color: #3B82F6; }
+.plant-sign-water { color: #38BDF8; }
+
+/* ── Growing progress ─────────────────────────────────────── */
+.growing-card-progress {
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--gray-100);
+}
+
+.growing-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: .78rem;
+  font-weight: 500;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: var(--gray-400);
+}
+
+.growing-progress-head strong { color: var(--plant-deep-green); font-size: .95rem; }
+
+.growing-progress-track {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background-color: var(--gray-100);
+  overflow: hidden;
+}
+
+.growing-progress-bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background-image: linear-gradient(90deg, var(--plant-leaf), var(--plant-green));
+  transition: width .4s ease;
+}
+
+/* ── Harvested checkbox of the edition form ───────────────── */
+.harvested-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background-color: var(--gray-50);
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--plant-deep-green);
+  cursor: pointer;
+}
+
+.harvested-check .form-check-input { margin: 0; cursor: pointer; }
+
+.harvested-check .form-check-input:checked {
+  background-color: var(--plant-green);
+  border-color: var(--plant-green);
+}
+
+@media (max-width: 720px) {
+  .growing-card-main { flex-direction: column; }
+  .growing-card-media { flex-basis: auto; }
+  .growing-card-media img { min-height: 0; aspect-ratio: 40 / 21; }
+}
+
+/* ── Harvested plants ─────────────────────────────────────── */
+.harvested-note {
+  margin: 10px 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -.5px;
+  color: #97710A;
+  line-height: 1.1;
+}
+
+.harvested-day {
+  margin: 2px 0 0;
+  font-size: .95rem;
+  font-weight: 500;
+  color: var(--gray-400);
+}
+
+.growing-card.is-harvested .growing-card-media img { filter: saturate(.55); }
+.growing-card.is-harvested .growing-progress-bar { background-image: none; background-color: var(--sun); }
+
+/* ── Page head actions ────────────────────────────────────── */
+.page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Destructive action ───────────────────────────────────── */
+.card-actions-spacer { flex: 1 1 auto; }
+
+.btn-danger-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background-color: var(--clay-light);
+  color: var(--clay);
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .18s ease, color .18s ease;
+}
+
+.btn-danger-ghost:hover {
+  background-color: var(--clay);
+  color: #fff;
+}

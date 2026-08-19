@@ -1,0 +1,6 @@
+{% comment %}
+Answer to a successful creation: the list comes back in full, so the new plant
+sits at its place in the order, while the out of band swap closes the form.
+{% endcomment %}
+{% include "plant_management/growing_plants/partials/growing_plants_list.html" %}
+<div id="growing-plant-create" hx-swap-oob="innerHTML"></div>

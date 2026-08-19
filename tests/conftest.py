@@ -1,9 +1,10 @@
+import datetime
 import io
 
 import pytest
 from PIL import Image
 
-from plant_management.models import PlantType
+from plant_management.models import GrowingPlant, PlantType
 
 
 @pytest.fixture
@@ -37,4 +38,41 @@ def plant_type_payload():
         'temperature_max': 25.0,
         'luminosity_per_day': 5,
         'harvest_days': 45,
+    }
+
+
+@pytest.fixture
+def growing_plant(plant_type):
+    """A plant growing well: every measure sits inside what its type asks for."""
+    return GrowingPlant.objects.create(
+        display_name="Basilic du balcon",
+        plant_type=plant_type,
+        planted_date=datetime.datetime(2026, 7, 8, 9, 30),
+        last_watering=datetime.datetime(2026, 8, 18, 20, 0),
+        growing_state=70,
+        current_temperature=24.0,
+        current_humidity=72,
+        current_luminosity=7,
+        auto_luminosity=True,
+    )
+
+
+@pytest.fixture
+def harvested_plant(plant_type):
+    return GrowingPlant.objects.create(
+        display_name="Laitue d'hiver",
+        plant_type=plant_type,
+        planted_date=datetime.datetime(2026, 5, 15, 9, 30),
+        growing_state=100,
+        harvested=True,
+        harvest_day=datetime.datetime(2026, 8, 2, 11, 0),
+    )
+
+
+@pytest.fixture
+def growing_plant_payload(plant_type):
+    return {
+        'display_name': "Basilic de la fenêtre",
+        'plant_type': plant_type.pk,
+        'planted_date': "2026-03-12",
     }

@@ -96,7 +96,12 @@ tout. Une écriture en base qui échoue n'interrompt jamais l'appelant.
 
 | URL | Nom | Rôle |
 | --- | --- | --- |
-| `/` | `plant_management_index` | page d'accueil |
+| `/` | `growing_plants` | les plantes en cours de croissance, une carte par ligne |
+| `/plants/create/` | `create_growing_plant` | GET : formulaire de création, POST : création |
+| `/plants/<id>/` | `growing_plant_detail` | GET : carte modifiable, POST : enregistrement |
+| `/plants/<id>/card/` | `growing_plant_card` | carte en lecture (sert aussi de « Annuler ») |
+| `/plants/<id>/delete/` | `delete_growing_plant` | POST : suppression, après confirmation |
+| `/plants/<id>/auto-luminosity/` | `growing_plant_auto_luminosity` | POST : bascule la lumière automatique |
 | `/plant-types/` | `plant_types` | la grille des types de plantes |
 | `/plant-types/create/` | `create_plant_type` | GET : formulaire de création, POST : création |
 | `/plant-types/<id>/` | `plant_type_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
@@ -111,7 +116,42 @@ en-têtes `HX-Retarget` / `HX-Reswap`.
 
 `/logs/` sert la page complète, ou le tableau seul quand la requête porte
 l'en-tête `HX-Request` : filtrer ne recharge donc que le tableau, et l'URL
-filtrée reste partageable.
+filtrée reste partageable. `/` suit la même règle pour l'interrupteur des
+plantes récoltées (`?harvested=1`).
+
+## Les signes des cartes de plantes
+
+Chaque carte porte, sur la photo, ce que les dernières mesures disent de la
+plante face à ce que son type demande. Les SVG sont dans
+`growing_plants/partials/growing_plant_signs.html`, la comparaison dans les
+méthodes du modèle `GrowingPlant`.
+
+| Signe | Quand |
+| --- | --- |
+| soleil | `current_luminosity` ≥ `luminosity_per_day` |
+| nuage | `current_luminosity` < `luminosity_per_day` |
+| thermomètre | `current_temperature` > `temperature_max` |
+| flocon | `current_temperature` < `temperature_min` |
+| goutte d'eau | `current_humidity` < `humidity_min` |
+
+Une mesure absente n'affiche aucun signe, et une plante récoltée n'en affiche
+aucun non plus.
+
+## Les plantes de la page principale
+
+Les plantes sont triées par date de plantation, les récoltées à la fin, et les
+supprimées ne sont jamais listées.
+
+Une plante **récoltée** ne garde que son nom, sa photo, sa date de plantation et
+sa barre de croissance, avec la mention « Récoltée » et le jour de récolte
+(`harvest_day`). Cocher la case « Récoltée » note le jour même si aucun n'est
+choisi ; décocher la case efface le jour.
+
+La **suppression** est douce : la ligne reste en base, marquée `is_deleted`. Le
+bouton demande confirmation (`hx-confirm`), puis la réponse ne remplace rien :
+elle renvoie l'en-tête `HX-Trigger: refresh-plants`, sur lequel la page recharge
+sa liste — ce qui garde le filtre et l'ordre justes. La **création** répond avec
+la liste entière, pour que la nouvelle plante se place à sa date.
 
 ## Tests
 

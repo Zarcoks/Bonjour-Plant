@@ -19,7 +19,7 @@
   <body>
     <header class="plant-header">
       <div class="header-inner">
-        <a class="brand-link" href="{% url 'plant_management_index' %}">
+        <a class="brand-link" href="{% url 'growing_plants' %}">
           <img src="{% static 'bonjour-plant-icon.svg' %}" alt="Bonjour Plant">
           <div>
             <p class="brand-name">Bonjour Plant</p>
@@ -27,9 +27,9 @@
           </div>
         </a>
         <nav class="header-nav">
-          <a href="{% url 'plant_management_index' %}" class="nav-link-btn">
+          <a href="{% url 'growing_plants' %}" class="nav-link-btn">
             <i class="bi bi-house-door"></i>
-            Accueil
+            Mes plantes
           </a>
           <div class="dropdown">
             <button class="nav-link-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -46,11 +46,10 @@
               </li>
               <li><hr class="dropdown-divider"></li>
               <li>
-                <span class="dropdown-item disabled">
+                <a class="dropdown-item" href="{% url 'growing_plants' %}">
                   <i class="bi bi-tree"></i>
                   Mes plantes
-                  <span class="item-soon">bientôt</span>
-                </span>
+                </a>
               </li>
               <li>
                 <a class="dropdown-item" href="{% url 'logs' %}">

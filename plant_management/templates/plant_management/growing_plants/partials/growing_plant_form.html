@@ -1,0 +1,45 @@
+{% comment %}Creation form, loaded above the list of plants.{% endcomment %}
+<div class="plant-form-card">
+  {# The harvested toggle is included, so that the list comes back with the right filter. #}
+  <form hx-post="{% url 'create_growing_plant' %}"
+        hx-target="#growing-plant-list"
+        hx-swap="innerHTML"
+        hx-include="#harvested-toggle">
+    {% csrf_token %}
+
+    <h2 class="plant-form-title">
+      <i class="bi bi-tree"></i>
+      Nouvelle plante
+    </h2>
+
+    <div class="plant-field-grid plant-field-grid-wide">
+      {% for field in form %}
+        <div class="plant-field">
+          <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+          {{ field }}
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="field-error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <p class="plant-form-note">
+      <i class="bi bi-info-circle"></i>
+      La photo est celle du type de plante choisi.
+    </p>
+
+    <div class="card-actions">
+      <button class="btn-ghost" type="button"
+              onclick="document.getElementById('growing-plant-create').innerHTML = '';">
+        Annuler
+      </button>
+      <button class="btn-plant" type="submit">
+        <i class="bi bi-check-lg"></i>
+        Planter
+      </button>
+    </div>
+  </form>
+</div>

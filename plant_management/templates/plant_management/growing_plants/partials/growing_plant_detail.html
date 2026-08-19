@@ -1,0 +1,63 @@
+{% comment %}The same card, with the editable fields of the plant.{% endcomment %}
+<article class="growing-card is-open" id="growing-plant-{{ plant.pk }}">
+  <form hx-post="{% url 'growing_plant_detail' plant.pk %}"
+        hx-target="#growing-plant-{{ plant.pk }}"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+
+    <header class="growing-card-head">
+      <span><i class="bi bi-pencil"></i> Modifier la plante</span>
+    </header>
+
+    <div class="growing-card-main">
+      <div class="growing-card-media">
+        <img src="{{ plant.get_photo_url }}" alt="{{ plant.display_name }}">
+        {% if not plant.harvested %}
+          {% include "plant_management/growing_plants/partials/growing_plant_signs.html" %}
+        {% endif %}
+      </div>
+
+      <div class="growing-card-body">
+        <div class="plant-field-grid plant-field-grid-wide">
+          {% for field in form %}
+            {% if field.name != 'harvested' %}
+              <div class="plant-field">
+                <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                {{ field }}
+                {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        <label class="harvested-check" for="{{ form.harvested.id_for_label }}">
+          {{ form.harvested }}
+          <span><i class="bi bi-basket2"></i> {{ form.harvested.label|capfirst }}</span>
+        </label>
+        {% for error in form.harvested.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+
+        <div class="card-actions">
+          {# Nothing is swapped here: the answer asks the page to load its list again. #}
+          <button class="btn-danger-ghost" type="button"
+                  hx-post="{% url 'delete_growing_plant' plant.pk %}"
+                  hx-swap="none"
+                  hx-confirm="Êtes-vous sûr de vouloir supprimer {{ plant.display_name }} ?">
+            <i class="bi bi-trash3"></i>
+            Supprimer
+          </button>
+          <span class="card-actions-spacer"></span>
+          <button class="btn-ghost" type="button"
+                  hx-get="{% url 'growing_plant_card' plant.pk %}"
+                  hx-target="#growing-plant-{{ plant.pk }}"
+                  hx-swap="outerHTML">
+            Annuler
+          </button>
+          <button class="btn-plant" type="submit">
+            <i class="bi bi-check-lg"></i>
+            Valider
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</article>

@@ -1,0 +1,15 @@
+{% comment %}The list of cards alone, so that the harvested toggle can refresh it.{% endcomment %}
+{% for plant in plants %}
+  {% include "plant_management/growing_plants/partials/growing_plant_card.html" %}
+{% empty %}
+  <div class="empty-state">
+    <i class="bi bi-tree"></i>
+    <p>
+      {% if show_harvested %}
+        Aucune plante pour l'instant.
+      {% else %}
+        Aucune plante en cours de croissance.
+      {% endif %}
+    </p>
+  </div>
+{% endfor %}

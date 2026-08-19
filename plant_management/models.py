@@ -36,12 +36,15 @@ class PlantType(models.Model):
 
 class GrowingPlant(models.Model):
     """An actual plant being grown by the user, of a given plant type."""
-    display_name = models.CharField("nom affiché", max_length=120)
-    plant_type = models.ForeignKey(PlantType, on_delete=models.CASCADE, related_name='growing_plants')
-    planted_date = models.DateTimeField("date de plantation", null=True, blank=True)
+    display_name = models.CharField("nom", max_length=120)
+    plant_type = models.ForeignKey(PlantType, verbose_name="type de plante", on_delete=models.CASCADE,
+                                   related_name='growing_plants')
+    planted_date = models.DateTimeField("planté le", null=True, blank=True)
     is_deleted = models.BooleanField(default=False)
-    harvested = models.BooleanField(default=False)
+    harvested = models.BooleanField("récoltée", default=False)
+    harvest_day = models.DateTimeField("récoltée le", null=True, blank=True)
     last_watering = models.DateTimeField("dernier arrosage", null=True, blank=True)
+    auto_luminosity = models.BooleanField("lumière automatique", default=False)
 
     growing_state = models.IntegerField("avancement (%)", default=0)
     current_temperature = models.FloatField("température actuelle", null=True, blank=True)
@@ -53,6 +56,32 @@ class GrowingPlant(models.Model):
 
     def __str__(self):
         return self.display_name
+
+    def get_photo_url(self):
+        """A growing plant is pictured by its type, which falls back to the default illustration."""
+        return self.plant_type.get_photo_url()
+
+    # The measures below are compared to what the plant type asks for. Each one
+    # answers None when the measure is missing: the card then shows no sign at all.
+    def has_enough_light(self):
+        if self.current_luminosity is None:
+            return None
+        return self.current_luminosity >= self.plant_type.luminosity_per_day
+
+    def is_too_hot(self):
+        if self.current_temperature is None:
+            return None
+        return self.current_temperature > self.plant_type.temperature_max
+
+    def is_too_cold(self):
+        if self.current_temperature is None:
+            return None
+        return self.current_temperature < self.plant_type.temperature_min
+
+    def needs_water(self):
+        if self.current_humidity is None:
+            return None
+        return self.current_humidity < self.plant_type.humidity_min
 
 
 class AppLog(models.Model):

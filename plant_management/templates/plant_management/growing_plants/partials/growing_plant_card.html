@@ -1,0 +1,79 @@
+{% comment %}
+A growing plant as it is read. A harvested plant keeps its name, its photo, its
+planting date and its growing bar: no measure, no sign, no automatic light.
+{% endcomment %}
+<article class="growing-card{% if plant.harvested %} is-harvested{% endif %}" id="growing-plant-{{ plant.pk }}"
+         role="button" tabindex="0"
+         hx-get="{% url 'growing_plant_detail' plant.pk %}"
+         hx-target="#growing-plant-{{ plant.pk }}"
+         hx-swap="outerHTML"
+         hx-trigger="click, keyup[key=='Enter']">
+
+  <header class="growing-card-head">
+    <span>
+      <i class="bi bi-calendar3"></i>
+      {% if plant.planted_date %}
+        Planté le {{ plant.planted_date|date:"j F Y" }}
+      {% else %}
+        Date de plantation inconnue
+      {% endif %}
+    </span>
+  </header>
+
+  <div class="growing-card-main">
+    <div class="growing-card-media">
+      <img src="{{ plant.get_photo_url }}" alt="{{ plant.display_name }}">
+      {% if not plant.harvested %}
+        {% include "plant_management/growing_plants/partials/growing_plant_signs.html" %}
+      {% endif %}
+    </div>
+
+    <div class="growing-card-body">
+      <h2 class="growing-card-title">{{ plant.display_name }}</h2>
+
+      {% if plant.harvested %}
+        <p class="harvested-note">Récoltée</p>
+        {% if plant.harvest_day %}
+          <p class="harvested-day">le {{ plant.harvest_day|date:"j F Y" }}</p>
+        {% endif %}
+      {% else %}
+        <p class="growing-card-type">{{ plant.plant_type.plant_name }}</p>
+
+        <p class="growing-card-watering">
+          <i class="bi bi-droplet-half"></i>
+          {% if plant.last_watering %}
+            Dernier arrosage {{ plant.last_watering|timesince }}
+          {% else %}
+            Jamais arrosée
+          {% endif %}
+        </p>
+
+        {# The click is consumed, so that the button does not open the card too. #}
+        <button class="light-btn{% if plant.auto_luminosity %} is-on{% endif %}" type="button"
+                hx-post="{% url 'growing_plant_auto_luminosity' plant.pk %}"
+                hx-target="#growing-plant-{{ plant.pk }}"
+                hx-swap="outerHTML"
+                hx-trigger="click consume"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+          <i class="bi bi-lightbulb{% if plant.auto_luminosity %}-fill{% endif %}"></i>
+          Lumière automatique
+          <span class="light-state">{% if plant.auto_luminosity %}activée{% else %}désactivée{% endif %}</span>
+        </button>
+      {% endif %}
+
+      <span class="growing-card-hint">Cliquer pour modifier <i class="bi bi-chevron-down"></i></span>
+    </div>
+  </div>
+
+  <footer class="growing-card-progress">
+    <div class="growing-progress-head">
+      <span>Croissance</span>
+      <strong>{{ plant.growing_state }} %</strong>
+    </div>
+    <div class="growing-progress-track" role="progressbar" aria-valuenow="{{ plant.growing_state }}"
+         aria-valuemin="0" aria-valuemax="100">
+      <div class="growing-progress-bar" style="width: {{ plant.growing_state }}%;"></div>
+    </div>
+  </footer>
+
+</article>
