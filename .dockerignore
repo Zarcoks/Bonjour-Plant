@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+.venv
+venv/
+
+# IDE
+.idea
+.vscode
+
+# Local config
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile*
+docker-compose*
+Caddyfile
+
+# Documentation
+*.md
+
+# Development
+.claude/
+
+# Uploads and collected static files: both are volumes
+media/
+staticfiles/
+
+# Local database
+bonjour_plant_db
+
+# Testing
+.pytest_cache/

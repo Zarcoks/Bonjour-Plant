@@ -1,0 +1,24 @@
+# Production configuration, plain HTTP for now.
+:80 {
+    encode gzip
+
+    # Serve static files directly
+    handle_path /static/* {
+        root * /srv/static
+        file_server
+    }
+
+    # Serve the user uploads directly
+    handle_path /media/* {
+        root * /srv/media
+        file_server
+    }
+
+    # Proxy all other requests to Django
+    handle {
+        reverse_proxy django-web:8000 {
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+}

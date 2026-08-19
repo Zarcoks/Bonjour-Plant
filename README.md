@@ -20,8 +20,40 @@ simple comme bonjour.
   - `management/commands/data_setup.py` : crée les types de plantes connus par défaut
 - `media/` : photos envoyées par l'utilisateur (hors dépôt)
 - `tests/` : tests d'intégration pytest, un module par page
+- `Dockerfile`, `entrypoint.sh`, `Caddyfile`, `docker-compose.yaml` : le déploiement
 
-## Lancer en local
+## Déployer avec Docker
+
+Toute la stack se déploie sur le port 80, en HTTP :
+
+```
+cp .env.example .env      # puis renseigner DJANGO_SECRET_KEY, DATABASE_PASSWORD et DJANGO_ALLOWED_HOSTS
+docker compose up -d --build
+```
+
+L'application est alors prête à l'emploi sur http://localhost/ : `entrypoint.sh`
+attend PostgreSQL, applique les migrations, collecte les fichiers statiques,
+installe les types de plantes par défaut, puis lance gunicorn.
+
+Trois services :
+
+| Service | Rôle |
+| --- | --- |
+| `caddy` | publie le port 80, sert `/static/` et `/media/`, proxifie le reste vers gunicorn |
+| `django-web` | l'application derrière gunicorn (4 workers), sur le port 8000 interne |
+| `db` | PostgreSQL 17 |
+
+Les données survivent aux redéploiements dans trois volumes nommés :
+`postgres_data`, `media_data` (les photos envoyées) et `static_data` (les
+fichiers collectés).
+
+```
+docker compose logs -f django-web    # suivre les logs de l'application
+docker compose down                  # arrêter, en gardant les données
+docker compose down -v               # arrêter et tout effacer
+```
+
+## Lancer en local, sans Docker
 
 ```
 python -m venv .venv
@@ -33,6 +65,8 @@ python manage.py runserver
 ```
 
 Les réglages se surchargent par variables d'environnement, voir `.env.example`.
+En local, sans variable d'environnement, l'application tourne en SQLite avec
+`DEBUG` actif ; le `.env` n'est lu que par Docker Compose.
 
 ## Les logs
 
