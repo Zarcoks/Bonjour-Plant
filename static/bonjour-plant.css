@@ -246,6 +246,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 10px 20px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -388,6 +390,7 @@ body {
 .card-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }
@@ -451,7 +454,9 @@ body {
 .log-filters .plant-field:first-child { flex: 1 1 220px; }
 
 .log-table-wrapper {
-  overflow-x: auto;
+  /* The table keeps a bounded height on the page, and scrolls inside it. */
+  max-height: min(62vh, 620px);
+  overflow: auto;
   background-color: #fff;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -465,6 +470,10 @@ body {
 }
 
 .log-table thead th {
+  /* The header stays in place while the rows scroll under it. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: 14px 20px;
   background-color: var(--plant-light-green);
   color: var(--plant-deep-green);
@@ -814,10 +823,15 @@ body {
 /* ── Destructive action ───────────────────────────────────── */
 .card-actions-spacer { flex: 1 1 auto; }
 
+/* In a narrow card, the destructive action keeps a line of its own. */
+.plant-card .card-actions-spacer { flex-basis: 100%; }
+
 .btn-danger-ghost {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 10px 20px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -834,3 +848,19 @@ body {
   background-color: var(--clay);
   color: #fff;
 }
+
+/* ── Sensors ──────────────────────────────────────────────── */
+.sensor-assignment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: .85rem;
+  color: var(--gray-500);
+}
+
+.sensor-assignment i { color: var(--plant-green); }
+.sensor-assignment strong { color: var(--plant-deep-green); font-weight: 600; }
+
+.sensor-assignment.is-free { color: var(--gray-400); }
+.sensor-assignment.is-free i { color: var(--gray-300); }

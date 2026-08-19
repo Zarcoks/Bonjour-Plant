@@ -2,6 +2,7 @@ from django.urls import reverse
 
 from core.app import app
 from plant_management.models import AppLog
+from plant_management.pages.logs.views import LOGS_SHOWN
 
 
 def test_logs_page(client, db):
@@ -57,3 +58,32 @@ def test_an_unknown_level_filter_is_ignored(client, db):
     response = client.get(reverse("logs"), {'type': "PANIC"})
     assert response.status_code == 200
     assert "une information".encode() in response.content
+
+
+def test_at_most_two_hundred_logs_are_shown(client, db):
+    AppLog.objects.bulk_create([AppLog(message="log numéro {}".format(number), type="DEBUG")
+                                for number in range(250)])
+    content = client.get(reverse("logs")).content.decode()
+    # One row per log, plus the header row.
+    assert content.count("<tr>") == LOGS_SHOWN + 1
+
+
+def test_the_two_hundred_shown_are_the_newest_ones(client, db):
+    AppLog.objects.bulk_create([AppLog(message="log numéro {}".format(number), type="DEBUG")
+                                for number in range(250)])
+    content = client.get(reverse("logs")).content.decode()
+    # Written in the same second: the newest of the batch opens the table,
+    # the oldest ones are left out.
+    assert content.index("log numéro 249") < content.index("log numéro 248")
+    assert content.index("log numéro 51") < content.index("log numéro 50")
+    assert "log numéro 49" not in content
+    assert "log numéro 0<" not in content
+
+
+def test_the_limit_applies_to_a_filtered_table_too(client, db):
+    AppLog.objects.bulk_create([AppLog(message="bruit {}".format(number), type="DEBUG")
+                                for number in range(250)])
+    app.logger.info("une information isolée")
+    content = client.get(reverse("logs"), {'search': "bruit"}).content.decode()
+    assert content.count("<tr>") == LOGS_SHOWN + 1
+    assert "une information isolée" not in content

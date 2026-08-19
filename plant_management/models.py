@@ -1,8 +1,9 @@
 from django.db import models
 from django.templatetags.static import static
 
-# The photo shown for a plant type that has no picture of its own yet.
+# The photos shown for a plant type or a sensor that has no picture of its own yet.
 DEFAULT_PLANT_TYPE_PHOTO = 'plant-type-default.svg'
+DEFAULT_SENSOR_PHOTO = 'sensor-default.svg'
 
 
 class PlantType(models.Model):
@@ -82,6 +83,28 @@ class GrowingPlant(models.Model):
         if self.current_humidity is None:
             return None
         return self.current_humidity < self.plant_type.humidity_min
+
+
+class Sensor(models.Model):
+    """A sensor of the installation, assigned to a growing plant or to none."""
+    name = models.CharField("nom", max_length=120)
+    model = models.CharField("modèle", max_length=120)
+    is_deleted = models.BooleanField(default=False)
+    plant = models.ForeignKey(GrowingPlant, verbose_name="assigné à", on_delete=models.SET_NULL,
+                              null=True, blank=True, related_name='sensors')
+    mqtt_topic = models.CharField("topic MQTT", max_length=200)
+    photo = models.ImageField("photo", upload_to='sensors/', blank=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def get_photo_url(self):
+        if self.photo:
+            return self.photo.url
+        return static(DEFAULT_SENSOR_PHOTO)
 
 
 class AppLog(models.Model):

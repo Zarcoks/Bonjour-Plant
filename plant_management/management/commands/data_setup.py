@@ -3,7 +3,7 @@ import datetime
 from django.core.management.base import BaseCommand
 
 from core.app import app
-from plant_management.models import GrowingPlant, PlantType
+from plant_management.models import GrowingPlant, PlantType, Sensor
 
 logger = app.module_logger("data_setup")
 
@@ -47,6 +47,19 @@ DEFAULT_GROWING_PLANTS = [
 ]
 
 
+# A few sensors, one of them assigned to no plant at all.
+DEFAULT_SENSORS = [
+    {'name': "Sonde d'humidité du balcon", 'model': "Zigbee SM-100",
+     'mqtt_topic': "bonjour-plant/balcon/humidity", 'plant': "Basilic du balcon"},
+    {'name': "Thermomètre de la serre", 'model': "Zigbee TH-220",
+     'mqtt_topic': "bonjour-plant/serre/temperature", 'plant': "Tomates de la serre"},
+    {'name': "Luxmètre du jardin", 'model': "LoRa LX-40",
+     'mqtt_topic': "bonjour-plant/jardin/luminosity", 'plant': "Fraisier du jardin"},
+    {'name': "Sonde d'humidité de rechange", 'model': "Zigbee SM-100",
+     'mqtt_topic': "bonjour-plant/atelier/humidity", 'plant': None},
+]
+
+
 class Command(BaseCommand):
     help = "Sets up the plant types the application knows by default."
 
@@ -67,4 +80,12 @@ class Command(BaseCommand):
             if created:
                 logger.info("La plante " + fields['display_name'] + " a été plantée")
 
-        self.stdout.write(self.style.SUCCESS("Plant types and growing plants are set up."))
+        for sensor in DEFAULT_SENSORS:
+            fields = dict(sensor)
+            plant_name = fields.pop('plant')
+            fields['plant'] = GrowingPlant.objects.filter(display_name=plant_name).first() if plant_name else None
+            _, created = Sensor.objects.get_or_create(name=fields['name'], defaults=fields)
+            if created:
+                logger.info("Le capteur " + fields['name'] + " a été installé")
+
+        self.stdout.write(self.style.SUCCESS("Plant types, growing plants and sensors are set up."))

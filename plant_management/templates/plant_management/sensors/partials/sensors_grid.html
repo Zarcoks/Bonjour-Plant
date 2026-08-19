@@ -1,0 +1,14 @@
+{% comment %}The cards alone, so that the page can load its grid again.{% endcomment %}
+{% for sensor in sensors %}
+  {% include "plant_management/sensors/partials/sensor_card.html" %}
+{% endfor %}
+
+{# Always rendered, so the creation answer can always clear it out of band. #}
+<div id="sensor-empty" class="col-12">
+  {% if not sensors %}
+    <div class="empty-state">
+      <i class="bi bi-broadcast-pin"></i>
+      <p>Aucun capteur pour l'instant. Créez le premier !</p>
+    </div>
+  {% endif %}
+</div>

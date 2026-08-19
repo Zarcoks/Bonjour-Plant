@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260" role="img" aria-label="Photo par défaut">
+  <defs>
+    <linearGradient id="board" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EAF7EF"/>
+      <stop offset="1" stop-color="#D7EEE0"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="260" fill="url(#board)"/>
+
+  <!-- signal waves -->
+  <g fill="none" stroke="#7BC96F" stroke-width="6" stroke-linecap="round" opacity=".75">
+    <path d="M262 108a34 34 0 0 1 0 44"/>
+    <path d="M284 92a62 62 0 0 1 0 76"/>
+  </g>
+
+  <!-- probe -->
+  <path d="M120 150v58" stroke="#52525B" stroke-width="7" stroke-linecap="round"/>
+  <path d="M112 208h16l-8 16z" fill="#52525B"/>
+
+  <!-- body -->
+  <rect x="84" y="76" width="148" height="80" rx="14" fill="#14432A"/>
+  <rect x="98" y="92" width="86" height="48" rx="8" fill="#2F9E62"/>
+  <g fill="#EAF7EF">
+    <rect x="108" y="104" width="46" height="7" rx="3.5"/>
+    <rect x="108" y="118" width="30" height="7" rx="3.5"/>
+  </g>
+  <circle cx="208" cy="116" r="9" fill="#F7C948"/>
+</svg>

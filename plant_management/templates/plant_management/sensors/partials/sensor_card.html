@@ -1,0 +1,32 @@
+{% comment %}Collapsed card: photo, name, model and the plant the sensor watches.{% endcomment %}
+<div class="col" id="sensor-{{ sensor.pk }}">
+  <article class="plant-card"
+           role="button" tabindex="0"
+           hx-get="{% url 'sensor_detail' sensor.pk %}"
+           hx-target="#sensor-{{ sensor.pk }}"
+           hx-swap="outerHTML"
+           hx-trigger="click, keyup[key=='Enter']">
+    <div class="plant-card-media">
+      <img src="{{ sensor.get_photo_url }}" alt="{{ sensor.name }}">
+    </div>
+    <div class="plant-card-body">
+      <h2 class="plant-card-title">{{ sensor.name }}</h2>
+      <p class="plant-card-meta">
+        <i class="bi bi-cpu"></i>
+        {{ sensor.model }}
+      </p>
+      <p class="sensor-assignment{% if not sensor.plant %} is-free{% endif %}">
+        <i class="bi bi-{% if sensor.plant %}link-45deg{% else %}dash-circle{% endif %}"></i>
+        {% if sensor.plant %}
+          Assigné à <strong>{{ sensor.plant.display_name }}</strong>
+        {% else %}
+          Assigné à aucune plante
+        {% endif %}
+      </p>
+      <span class="plant-card-hint">
+        Voir et modifier
+        <i class="bi bi-chevron-down"></i>
+      </span>
+    </div>
+  </article>
+</div>

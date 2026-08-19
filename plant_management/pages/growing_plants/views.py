@@ -120,7 +120,10 @@ class GrowingPlantDelete(View):
         plant = get_object_or_404(GrowingPlant, pk=plant_id, is_deleted=False)
         plant.is_deleted = True
         plant.save()
-        logger.info("La plante " + plant.display_name + " a été supprimée")
+        # Its sensors go back to the free ones.
+        freed = plant.sensors.update(plant=None)
+        logger.info("La plante " + plant.display_name + " a été supprimée, "
+                    + str(freed) + " capteur(s) libéré(s)")
         response = HttpResponse(status=204)
         response['HX-Trigger'] = REFRESH_EVENT
         return response

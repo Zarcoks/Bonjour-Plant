@@ -11,7 +11,7 @@ simple comme bonjour.
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
-  - `models.py` : `PlantType`, `GrowingPlant`, `AppLog`
+  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `AppLog`
   - `pages/<page>/` : un dossier par page, contenant ses `views.py`, `urls.py`
     et son `forms.py`
   - `templates/plant_management/<page>/` : les templates de la page, ses
@@ -106,6 +106,11 @@ tout. Une écriture en base qui échoue n'interrompt jamais l'appelant.
 | `/plant-types/create/` | `create_plant_type` | GET : formulaire de création, POST : création |
 | `/plant-types/<id>/` | `plant_type_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/plant-types/<id>/card/` | `plant_type_card` | carte repliée (sert aussi de « Annuler ») |
+| `/sensors/` | `sensors` | la grille des capteurs |
+| `/sensors/create/` | `create_sensor` | GET : formulaire de création, POST : création |
+| `/sensors/<id>/` | `sensor_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
+| `/sensors/<id>/card/` | `sensor_card` | carte repliée (sert aussi de « Annuler ») |
+| `/sensors/<id>/delete/` | `delete_sensor` | POST : suppression, après confirmation |
 | `/logs/` | `logs` | le journal de l'application, filtrable |
 
 Les endpoints de `plant-types` renvoient des fragments HTML destinés à HTMX :
@@ -116,7 +121,9 @@ en-têtes `HX-Retarget` / `HX-Reswap`.
 
 `/logs/` sert la page complète, ou le tableau seul quand la requête porte
 l'en-tête `HX-Request` : filtrer ne recharge donc que le tableau, et l'URL
-filtrée reste partageable. `/` suit la même règle pour l'interrupteur des
+filtrée reste partageable. Le tableau garde une hauteur bornée et défile sur
+lui-même, en-tête figé ; il ne contient jamais plus de `LOGS_SHOWN` (200) logs,
+de la plus récente à la plus ancienne. `/` suit la même règle pour l'interrupteur des
 plantes récoltées (`?harvested=1`).
 
 ## Les signes des cartes de plantes
@@ -152,6 +159,17 @@ bouton demande confirmation (`hx-confirm`), puis la réponse ne remplace rien :
 elle renvoie l'en-tête `HX-Trigger: refresh-plants`, sur lequel la page recharge
 sa liste — ce qui garde le filtre et l'ordre justes. La **création** répond avec
 la liste entière, pour que la nouvelle plante se place à sa date.
+
+## Les capteurs
+
+Un capteur existe indépendamment des plantes : il est assigné à l'une d'elles ou
+à aucune. Sa page reprend le CRUD des types de plantes — grille de cartes, carte
+dépliée modifiable, photo par défaut, création en HTMX — avec en plus le champ
+« Assigner à » et la suppression.
+
+Comme pour les plantes, la suppression est douce (`is_deleted`), demande
+confirmation, et la réponse renvoie `HX-Trigger: refresh-sensors` sur lequel la
+grille se recharge. Supprimer une plante libère les capteurs qui la suivaient.
 
 ## Tests
 

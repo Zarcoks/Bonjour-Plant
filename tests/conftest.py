@@ -4,7 +4,7 @@ import io
 import pytest
 from PIL import Image
 
-from plant_management.models import GrowingPlant, PlantType
+from plant_management.models import GrowingPlant, PlantType, Sensor
 
 
 @pytest.fixture
@@ -75,4 +75,23 @@ def growing_plant_payload(plant_type):
         'display_name': "Basilic de la fenêtre",
         'plant_type': plant_type.pk,
         'planted_date': "2026-03-12",
+    }
+
+
+@pytest.fixture
+def sensor(db):
+    return Sensor.objects.create(
+        name="Sonde d'humidité du balcon",
+        model="Zigbee SM-100",
+        mqtt_topic="bonjour-plant/balcon/humidity",
+    )
+
+
+@pytest.fixture
+def sensor_payload():
+    return {
+        'name': "Thermomètre de la serre",
+        'model': "Zigbee TH-220",
+        'mqtt_topic': "bonjour-plant/serre/temperature",
+        'plant': "",
     }
