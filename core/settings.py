@@ -137,6 +137,18 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Celery
+# https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html
+
+CELERY_BROKER_URL = os.environ.get("REDIS_URL", 'redis://localhost:6379/0')
+
+# MQTT
+# The worker (see the mqtt_worker package) listens to the sensors on this broker,
+# and reads the topics to subscribe to from the sensor table every few seconds.
+
+MQTT_BROKER_URL = os.environ.get("MQTT_BROKER_URL", 'mqtt://localhost:1883')
+MQTT_SYNC_SECONDS = int(os.environ.get("MQTT_SYNC_SECONDS", 30))
+
 # Logging
 # The application logger (see the Logging package) writes on the console through
 # the standard library, and in the app_log table through its own code.
@@ -160,6 +172,11 @@ LOGGING = {
     },
     'loggers': {
         'bonjour_plant': {
+            'handlers': ['console'],
+            'level': DJANGO_LOGLEVEL,
+            'propagate': False,
+        },
+        'celery': {
             'handlers': ['console'],
             'level': DJANGO_LOGLEVEL,
             'propagate': False,

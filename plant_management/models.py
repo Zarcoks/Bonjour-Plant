@@ -107,6 +107,20 @@ class Sensor(models.Model):
         return static(DEFAULT_SENSOR_PHOTO)
 
 
+class SensorData(models.Model):
+    """One measure received from a sensor, kept as it came off the broker."""
+    sensor = models.ForeignKey(Sensor, on_delete=models.CASCADE, related_name='data')
+    plant = models.ForeignKey(GrowingPlant, on_delete=models.CASCADE, related_name='sensor_data')
+    time = models.DateTimeField(auto_now_add=True)
+    payload = models.TextField()
+
+    class Meta:
+        ordering = ['-time']
+
+    def __str__(self):
+        return "{} : {}".format(self.sensor.name, self.payload)
+
+
 class AppLog(models.Model):
     """Application-wide activity log."""
     time = models.DateTimeField(auto_now_add=True)

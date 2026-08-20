@@ -28,14 +28,13 @@ class Logger:
     The application exposes one for the whole application, see `core.app.app`.
     """
 
-    def __init__(self, module=ROOT_MODULE, persist=True):
+    def __init__(self, module=ROOT_MODULE):
         self.module_name = module
-        self.persist = persist
         self.console = stdlib_logging.getLogger(module)
 
     def module(self, name):
         """Derives a logger writing under "<this module>.<name>"."""
-        return Logger(module=self.module_name + "." + name, persist=self.persist)
+        return Logger(module=self.module_name + "." + name)
 
     def debug(self, message, **fields):
         return self.log(DEBUG, message, **fields)
@@ -53,8 +52,6 @@ class Logger:
         """Writes one record, and returns the persisted AppLog row (None if it could not be saved)."""
         line = self.format(message, fields)
         self.console.log(STDLIB_LEVELS[level], line)
-        if not self.persist:
-            return None
         return self.save(level, line)
 
     def format(self, message, fields):

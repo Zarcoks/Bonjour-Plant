@@ -42,6 +42,8 @@ def test_a_log_is_truncated_to_what_the_table_accepts(db):
     assert len(AppLog.objects.get().message) == 500
 
 
-def test_a_logger_can_skip_the_database():
-    # persist=False keeps the record on the console only: nothing to save, nothing to fail.
-    assert Logger(persist=False).info("nulle part") is None
+def test_every_record_goes_to_the_database(db):
+    # There is no console-only logger: a record always lands in the table.
+    assert app.logger.info("dans la base").pk is not None
+    assert app.module_logger("mqtt").warning("dans la base aussi").pk is not None
+

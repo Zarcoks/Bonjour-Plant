@@ -8,10 +8,11 @@ simple comme bonjour.
 - `core/` : configuration du projet (settings, urls, wsgi/asgi) et `app.py`,
   l'objet application
 - `Logging/` : l'objet loggueur de l'application
+- `mqtt_worker/` : le worker qui écoute les capteurs sur le broker MQTT
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
-  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `AppLog`
+  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `SensorData`, `AppLog`
   - `pages/<page>/` : un dossier par page, contenant ses `views.py`, `urls.py`
     et son `forms.py`
   - `templates/plant_management/<page>/` : les templates de la page, ses
@@ -40,7 +41,10 @@ Trois services :
 | Service | Rôle |
 | --- | --- |
 | `caddy` | publie le port 80, sert `/static/` et `/media/`, proxifie le reste vers gunicorn |
-| `django-web` | l'application derrière gunicorn (4 workers), sur le port 8000 interne |
+| `django-web` | l'application derrière gunicorn, sur le port 8000 interne |
+| `celery` | le worker qui écoute les capteurs sur MQTT |
+| `redis` | le courtier de messages de Celery |
+| `mqtt` | un broker Mosquitto de développement, sur le port 1883 |
 | `db` | PostgreSQL 17 |
 
 Les données survivent aux redéploiements dans trois volumes nommés :
@@ -53,7 +57,7 @@ docker compose down                  # arrêter, en gardant les données
 docker compose down -v               # arrêter et tout effacer
 ```
 
-## Lancer en local, sans Docker
+## Lancer en local
 
 ```
 python -m venv .venv
@@ -67,6 +71,24 @@ python manage.py runserver
 Les réglages se surchargent par variables d'environnement, voir `.env.example`.
 En local, sans variable d'environnement, l'application tourne en SQLite avec
 `DEBUG` actif ; le `.env` n'est lu que par Docker Compose.
+
+### Avec les capteurs
+
+`runserver` seul ne fait pas tourner le worker. Dans un second terminal :
+
+```
+python manage.py dev_services
+```
+
+La commande démarre ce qui manque — un Redis sur le port 6379, un broker
+Mosquitto sur le port 1883 — puis lance le worker Celery au premier plan, lequel
+se met à écouter les capteurs tout seul. Un service qui répond déjà sur son port
+est réutilisé tel quel, qu'il vienne d'une installation locale ou de la stack
+Docker. Ctrl-C arrête le worker et les conteneurs que la commande avait démarrés,
+sans toucher à ceux qu'elle a réutilisés.
+
+Le worker et `runserver` partagent alors le même fichier SQLite : les écritures
+sont sérialisées, ce qui suffit largement en développement.
 
 ## Les logs
 
@@ -88,9 +110,10 @@ logger = app.module_logger("plant_types")
 ```
 
 Chaque appel écrit une ligne sur la console *et* une ligne dans la table
-`app_log`, consultable sur la page Journal. Les niveaux sont `DEBUG`, `INFO`,
-`WARNING` et `ERROR` ; la console se limite à `DJANGO_LOGLEVEL`, la base garde
-tout. Une écriture en base qui échoue n'interrompt jamais l'appelant.
+`app_log`, consultable sur la page Journal — il n'existe pas de journalisation
+qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
+`ERROR` ; la console se limite à `DJANGO_LOGLEVEL`, la base garde tout. Une
+écriture en base qui échoue n'interrompt jamais l'appelant.
 
 ## Pages et endpoints
 
@@ -170,6 +193,40 @@ dépliée modifiable, photo par défaut, création en HTMX — avec en plus le c
 Comme pour les plantes, la suppression est douce (`is_deleted`), demande
 confirmation, et la réponse renvoie `HX-Trigger: refresh-sensors` sur lequel la
 grille se recharge. Supprimer une plante libère les capteurs qui la suivaient.
+
+## Le worker MQTT
+
+Le paquet `mqtt_worker/` écoute les capteurs. L'adresse du broker vient de
+`MQTT_BROKER_URL` dans le `.env` (`mqtt://`, `mqtts://`, avec identifiants
+éventuels), les topics viennent du champ `mqtt_topic` des capteurs.
+
+Le worker démarre **tout seul** : le signal Celery `worker_ready` met la tâche
+`mqtt_worker.listen_to_sensors` en file dès que le worker est prêt, sans rien à
+lancer à la main. La tâche garde la connexion aussi longtemps que le worker
+vit ; si elle tombe, elle est remise en file.
+
+Toutes les `MQTT_SYNC_SECONDS` (30 s par défaut), le worker relit la table des
+capteurs et met ses abonnements à jour : un capteur ajouté est écouté, un
+capteur supprimé ou dont le topic change voit son ancien topic abandonné. Une
+reconnexion au broker reprend tous les abonnements, puisqu'une nouvelle session
+MQTT n'en porte aucun.
+
+À l'arrivée d'un message, une ligne `sensor_data` est écrite par capteur assigné
+qui écoute ce topic. **Une donnée venant d'un capteur assigné à aucune plante
+est abandonnée**, comme celle d'un topic que plus aucun capteur ne réclame. Les
+topics à jokers (`bonjour-plant/+/humidity`) sont gérés.
+
+Les événements du worker — connexion, abonnements, déconnexions, erreurs — sont
+journalisés dans la base comme le reste de l'application. Les lignes de trafic
+par mesure sont, elles, laissées en commentaire dans `handle_message` : une ligne
+d'`app_log` par mesure noierait tout le reste du journal. Il suffit de les
+décommenter pour suivre le détail.
+
+Pour écouter sans passer par Celery, en local :
+
+```
+python manage.py listen_sensors
+```
 
 ## Tests
 
