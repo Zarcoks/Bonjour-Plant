@@ -85,11 +85,11 @@ def test_an_htmx_request_only_gets_the_panel(client, growing_plant):
 # --- The curves ---
 
 def test_the_three_curves_are_built(client, watched):
-    measure(watched, '{"humidity": 65, "luminosity": 80, "temperature": 21.5}')
+    measure(watched, '{"humidity": 65, "luminosity": "high", "temperature": 21.5}')
     response = client.get(reverse("metrics"))
     assert points_of(response, 'current_humidity') == [
         {'x': points_of(response, 'current_humidity')[0]['x'], 'y': 65}]
-    assert points_of(response, 'current_luminosity')[0]['y'] == 80
+    assert points_of(response, 'current_luminosity')[0]['y'] == 3
     assert points_of(response, 'current_temperature')[0]['y'] == 21.5
 
 
@@ -141,6 +141,14 @@ def test_the_measures_of_another_plant_are_not_mixed_in(client, watched, harvest
     measure(watched, '{"humidity": 65}')
     content = client.get(reverse("metrics"), {'plant': harvested_plant.pk}).content.decode()
     assert "Aucune mesure sur la période." in content
+
+
+def test_the_light_curve_carries_the_names_of_its_levels(client, watched):
+    measure(watched, '{"luminosity": "nor"}')
+    content = client.get(reverse("metrics")).content.decode()
+    # The axis reads in words, and so does the table.
+    assert 'data-ticks="très faible|faible|normale|forte|très forte"' in content
+    assert "normale" in content
 
 
 # --- The values, without hovering ---

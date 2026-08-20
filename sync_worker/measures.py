@@ -1,6 +1,8 @@
 """Turning the payload of a sensor into measures a plant can hold."""
 import json
 
+from plant_management.models import LUMINOSITY_LEVELS
+
 
 def to_int(value):
     """A whole number, or None when the value is not one."""
@@ -17,6 +19,23 @@ def to_float(value):
         return None
 
 
+def to_level(value):
+    """
+    The rank of a light level, from the name the sensor gives it.
+
+    Sensors report the light as one of "low-", "low", "nor", "high" and "high+"
+    rather than as a number. A rank already on the scale is taken as it is;
+    anything else is not a level.
+    """
+    if isinstance(value, str):
+        name = value.strip().lower()
+        return LUMINOSITY_LEVELS.index(name) if name in LUMINOSITY_LEVELS else None
+    rank = to_int(value)
+    if rank is not None and 0 <= rank < len(LUMINOSITY_LEVELS):
+        return rank
+    return None
+
+
 def measures_of(sensor):
     """
     What to read in this sensor's payload, and where it lands on the plant.
@@ -26,7 +45,7 @@ def measures_of(sensor):
     """
     return [
         ('current_humidity', sensor.get_humidity_label(), to_int),
-        ('current_luminosity', sensor.get_luminosity_label(), to_int),
+        ('current_luminosity', sensor.get_luminosity_label(), to_level),
         ('current_temperature', sensor.get_temperature_label(), to_float),
     ]
 

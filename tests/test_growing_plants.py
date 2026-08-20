@@ -3,7 +3,7 @@ import datetime
 from django.urls import reverse
 from django.utils import timezone
 
-from plant_management.models import WELL_LIT_INTENSITY, AppLog, GrowingPlant
+from plant_management.models import WELL_LIT_LEVEL, AppLog, GrowingPlant
 
 
 def test_main_page_lists_the_growing_plants(client, growing_plant):
@@ -265,8 +265,8 @@ def test_a_plant_within_its_range_only_shows_the_sun(client, growing_plant):
 
 
 def test_a_plant_in_the_shade_shows_the_cloud(client, growing_plant):
-    # The measure is an intensity: below the share of light, the plant is in the shade.
-    growing_plant.current_luminosity = WELL_LIT_INTENSITY - 1
+    # The measure is a level: under the lit one, the plant is in the shade.
+    growing_plant.current_luminosity = WELL_LIT_LEVEL - 1
     growing_plant.save()
     content = client.get(reverse("growing_plants")).content.decode()
     assert "plant-sign-shade" in content
@@ -274,7 +274,7 @@ def test_a_plant_in_the_shade_shows_the_cloud(client, growing_plant):
 
 
 def test_a_plant_in_full_light_shows_the_sun(client, growing_plant):
-    growing_plant.current_luminosity = WELL_LIT_INTENSITY
+    growing_plant.current_luminosity = WELL_LIT_LEVEL
     growing_plant.save()
     content = client.get(reverse("growing_plants")).content.decode()
     assert "plant-sign-sun" in content
@@ -286,7 +286,7 @@ def test_the_light_sign_does_not_depend_on_the_hours_the_type_asks_for(client, g
     # species needs must not put a well lit plant in the shade.
     growing_plant.plant_type.luminosity_per_day = 99
     growing_plant.plant_type.save()
-    growing_plant.current_luminosity = 80
+    growing_plant.current_luminosity = 4
     growing_plant.save()
     assert "plant-sign-sun" in client.get(reverse("growing_plants")).content.decode()
 
@@ -307,6 +307,14 @@ def test_a_plant_lacking_humidity_shows_the_water_drop(client, growing_plant):
     growing_plant.current_humidity = growing_plant.plant_type.humidity_min - 1
     growing_plant.save()
     assert "plant-sign-water" in client.get(reverse("growing_plants")).content.decode()
+
+
+def test_a_light_level_off_the_scale_shows_no_light_sign(client, growing_plant):
+    # A value left by an older reading is not passed off as a level.
+    GrowingPlant.objects.filter(pk=growing_plant.pk).update(current_luminosity=78)
+    content = client.get(reverse("growing_plants")).content.decode()
+    assert "plant-sign-sun" not in content
+    assert "plant-sign-shade" not in content
 
 
 def test_a_plant_without_measures_shows_no_sign(client, growing_plant):

@@ -3,7 +3,7 @@ import datetime
 from django.shortcuts import render
 from django.views import View
 
-from plant_management.models import SensorData
+from plant_management.models import LUMINOSITY_LEVEL_NAMES, LUMINOSITY_LEVELS, SensorData
 from sync_worker import read_measures
 
 from .forms import PlantPickerForm
@@ -22,9 +22,17 @@ TABLE_ROWS = 50
 # their contrast on white; the labels carry the unit.
 CURVES = [
     {'field': 'current_humidity', 'title': "Humidité", 'unit': "%", 'colour': '#0369A1'},
-    {'field': 'current_luminosity', 'title': "Intensité lumineuse", 'unit': "%", 'colour': '#A16207'},
+    {'field': 'current_luminosity', 'title': "Niveau de lumière", 'unit': "",
+     'colour': '#A16207', 'ticks': [LUMINOSITY_LEVEL_NAMES[level] for level in LUMINOSITY_LEVELS]},
     {'field': 'current_temperature', 'title': "Température", 'unit': "°C", 'colour': '#BE185D'},
 ]
+
+
+def level_name(rank):
+    """The name of a light level, from its rank. Nothing when off the scale."""
+    if rank is None or not 0 <= rank < len(LUMINOSITY_LEVELS):
+        return None
+    return LUMINOSITY_LEVEL_NAMES[LUMINOSITY_LEVELS[rank]]
 
 
 def measures_over_time(plant):
@@ -44,7 +52,12 @@ def measures_over_time(plant):
         measures = read_measures(data.sensor, data.payload)
         if not measures:
             continue
-        moments.append({'time': data.time, 'measures': measures})
+        moments.append({
+            'time': data.time,
+            'measures': measures,
+            # The level is stored as a rank: the table shows its name.
+            'luminosity': level_name(measures.get('current_luminosity')),
+        })
         for field, value in measures.items():
             curves[field].append({'x': data.time.isoformat(timespec='seconds'), 'y': value})
     return curves, moments

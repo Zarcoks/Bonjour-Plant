@@ -29,9 +29,9 @@ def measure(sensor, payload, minutes_ago=0):
 # --- Reading a payload ---
 
 def test_the_usual_names_are_read(sensor):
-    assert read_measures(sensor, '{"humidity": 71, "luminosity": 80, "temperature": 21.5}') == {
+    assert read_measures(sensor, '{"humidity": 71, "luminosity": "high", "temperature": 21.5}') == {
         'current_humidity': 71,
-        'current_luminosity': 80,
+        'current_luminosity': 3,
         'current_temperature': 21.5,
     }
 
@@ -71,14 +71,42 @@ def test_a_json_payload_that_is_not_an_object_is_refused(sensor):
     assert read_measures(sensor, "71.5") is None
 
 
+def test_the_five_light_levels_are_read(sensor):
+    ranks = []
+    for name in ["low-", "low", "nor", "high", "high+"]:
+        ranks.append(read_measures(sensor, '{"luminosity": "%s"}' % name)['current_luminosity'])
+    assert ranks == [0, 1, 2, 3, 4]
+
+
+def test_a_level_is_read_whatever_its_case_and_padding(sensor):
+    assert read_measures(sensor, '{"luminosity": " HIGH+ "}') == {'current_luminosity': 4}
+
+
+def test_a_level_nobody_documented_is_left_out(sensor):
+    assert read_measures(sensor, '{"luminosity": "brillant"}') == {}
+    assert read_measures(sensor, '{"luminosity": 78}') == {}
+
+
+def test_a_real_payload_of_the_sensor_is_read(sensor):
+    # What the soil sensor actually publishes, keys and all.
+    sensor.humidity_payload_label = "soil_moisture"
+    sensor.luminosity_payload_label = "illuminance_level"
+    assert read_measures(sensor, '{"battery":100,"illuminance_level":"low","linkquality":228,'
+                                 '"soil_moisture":69,"temperature":27.7,"temperature_unit":"celsius"}') == {
+        'current_humidity': 69,
+        'current_luminosity': 1,
+        'current_temperature': 27.7,
+    }
+
+
 # --- Writing on the plants ---
 
 def test_the_last_measures_land_on_the_plant(watched, growing_plant):
-    measure(watched, '{"humidity": 65, "luminosity": 90, "temperature": 22.5}')
+    measure(watched, '{"humidity": 65, "luminosity": "high+", "temperature": 22.5}')
     assert sync_plants() == {'plants': 1, 'measures': 3, 'unreadable': 0}
     growing_plant.refresh_from_db()
     assert growing_plant.current_humidity == 65
-    assert growing_plant.current_luminosity == 90
+    assert growing_plant.current_luminosity == 4
     assert growing_plant.current_temperature == 22.5
 
 

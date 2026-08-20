@@ -52,7 +52,7 @@ def growing_plant(plant_type):
         growing_state=70,
         current_temperature=24.0,
         current_humidity=72,
-        current_luminosity=78,
+        current_luminosity=3,  # niveau « high »
         auto_luminosity=True,
     )
 

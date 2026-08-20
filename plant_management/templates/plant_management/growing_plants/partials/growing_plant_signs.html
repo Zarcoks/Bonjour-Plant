@@ -6,7 +6,7 @@ shows up only when the matching measure is outside what the plant type asks for.
 
   {% if plant.is_well_lit is not None %}
     {% if plant.is_well_lit %}
-      <span class="plant-sign plant-sign-sun" title="Bien éclairée : {{ plant.current_luminosity }} % d'intensité lumineuse">
+      <span class="plant-sign plant-sign-sun" title="Bien éclairée : lumière {{ plant.get_luminosity_name }}">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <circle cx="12" cy="12" r="4.6" fill="currentColor"/>
           <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -18,7 +18,7 @@ shows up only when the matching measure is outside what the plant type asks for.
         <span class="visually-hidden">Bien éclairée</span>
       </span>
     {% else %}
-      <span class="plant-sign plant-sign-shade" title="À l'ombre : {{ plant.current_luminosity }} % d'intensité lumineuse">
+      <span class="plant-sign plant-sign-shade" title="À l'ombre : lumière {{ plant.get_luminosity_name }}">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <circle cx="9" cy="8" r="3.4" fill="currentColor" opacity=".45"/>
           <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".45">

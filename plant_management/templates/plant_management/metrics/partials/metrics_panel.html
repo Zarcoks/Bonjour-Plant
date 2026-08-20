@@ -36,7 +36,7 @@
           <span class="metric-tile-name">{{ curve.title }}</span>
           <span class="metric-tile-value">
             {% if curve.field == 'current_humidity' %}{{ plant.current_humidity|default_if_none:"—" }}{% endif %}
-            {% if curve.field == 'current_luminosity' %}{{ plant.current_luminosity|default_if_none:"—" }}{% endif %}
+            {% if curve.field == 'current_luminosity' %}<span class="metric-tile-level">{{ plant.get_luminosity_name|default:"—" }}</span>{% endif %}
             {% if curve.field == 'current_temperature' %}{{ plant.current_temperature|default_if_none:"—" }}{% endif %}
             <span class="metric-tile-unit">{{ curve.unit }}</span>
           </span>
@@ -50,7 +50,7 @@
       <section class="metric-card">
         <h3 class="metric-card-title">
           <span class="metric-card-mark" style="background-color: {{ curve.colour }};"></span>
-          {{ curve.title }} <span class="metric-card-unit">({{ curve.unit }})</span>
+          {{ curve.title }}{% if curve.unit %} <span class="metric-card-unit">({{ curve.unit }})</span>{% endif %}
         </h3>
         {% if curve.points %}
           {{ curve.points|json_script:curve.field }}
@@ -58,7 +58,8 @@
                data-metric="{{ curve.field }}"
                data-title="{{ curve.title }}"
                data-unit="{{ curve.unit }}"
-               data-colour="{{ curve.colour }}"></div>
+               data-colour="{{ curve.colour }}"
+               {% if curve.ticks %}data-ticks="{{ curve.ticks|join:"|" }}"{% endif %}></div>
         {% else %}
           <p class="metric-card-empty">Aucune mesure sur la période.</p>
         {% endif %}
@@ -75,7 +76,7 @@
           <thead>
             <tr>
               <th>Date</th>
-              {% for curve in curves %}<th>{{ curve.title }} ({{ curve.unit }})</th>{% endfor %}
+              {% for curve in curves %}<th>{{ curve.title }}{% if curve.unit %} ({{ curve.unit }}){% endif %}</th>{% endfor %}
             </tr>
           </thead>
           <tbody>
@@ -83,7 +84,7 @@
               <tr>
                 <td class="log-time">{{ moment.time|date:"d/m/Y H:i:s" }}</td>
                 <td>{{ moment.measures.current_humidity|default_if_none:"—" }}</td>
-                <td>{{ moment.measures.current_luminosity|default_if_none:"—" }}</td>
+                <td>{{ moment.luminosity|default:"—" }}</td>
                 <td>{{ moment.measures.current_temperature|default_if_none:"—" }}</td>
               </tr>
             {% endfor %}

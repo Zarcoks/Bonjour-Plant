@@ -11,11 +11,22 @@ DEFAULT_HUMIDITY_LABEL = 'humidity'
 DEFAULT_LUMINOSITY_LABEL = 'luminosity'
 DEFAULT_TEMPERATURE_LABEL = 'temperature'
 
-# Above which share of light a plant counts as being in the light rather than in
-# the shade. What a sensor reports is an intensity: 0 % is darkness, 90 % is full
-# sun. It is not a duration — how many hours of light a species needs a day is
-# the business of its plant type.
-WELL_LIT_INTENSITY = 40
+# What a light sensor reports, from the darkest to the brightest, under the names
+# the sensors themselves use. The measure is a level, not a duration: how many
+# hours of light a species needs a day is the business of its plant type.
+LUMINOSITY_LEVELS = ['low-', 'low', 'nor', 'high', 'high+']
+
+# How each level is written in the interface.
+LUMINOSITY_LEVEL_NAMES = {
+    'low-': "très faible",
+    'low': "faible",
+    'nor': "normale",
+    'high': "forte",
+    'high+': "très forte",
+}
+
+# From this level up, a plant counts as being in the light rather than in the shade.
+WELL_LIT_LEVEL = LUMINOSITY_LEVELS.index('nor')
 
 
 class PlantType(models.Model):
@@ -62,7 +73,8 @@ class GrowingPlant(models.Model):
     growing_state = models.IntegerField("avancement (%)", default=0)
     current_temperature = models.FloatField("température actuelle", null=True, blank=True)
     current_humidity = models.IntegerField("humidité actuelle", null=True, blank=True)
-    current_luminosity = models.IntegerField("intensité lumineuse (%)", null=True, blank=True)
+    # The rank of the level in LUMINOSITY_LEVELS, from 0 (low-) to 4 (high+).
+    current_luminosity = models.IntegerField("niveau de lumière", null=True, blank=True)
 
     class Meta:
         ordering = ['display_name']
@@ -76,16 +88,29 @@ class GrowingPlant(models.Model):
 
     # The measures below are compared to what the plant type asks for. Each one
     # answers None when the measure is missing: the card then shows no sign at all.
+    def get_luminosity_level(self):
+        """The level the plant is lit at, None when unknown or off the scale."""
+        if self.current_luminosity is None:
+            return None
+        if not 0 <= self.current_luminosity < len(LUMINOSITY_LEVELS):
+            return None
+        return LUMINOSITY_LEVELS[self.current_luminosity]
+
+    def get_luminosity_name(self):
+        """That level, as the interface writes it."""
+        level = self.get_luminosity_level()
+        return LUMINOSITY_LEVEL_NAMES[level] if level else None
+
     def is_well_lit(self):
         """
         Whether the plant sits in the light rather than in the shade.
 
-        The measure is an intensity, so it is read against a share of light and
-        not against the hours a day its type asks for.
+        Read against a level, not against the hours a day its type asks for:
+        the two are different things.
         """
-        if self.current_luminosity is None:
+        if self.get_luminosity_level() is None:
             return None
-        return self.current_luminosity >= WELL_LIT_INTENSITY
+        return self.current_luminosity >= WELL_LIT_LEVEL
 
     def is_too_hot(self):
         if self.current_temperature is None:

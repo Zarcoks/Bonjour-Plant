@@ -160,8 +160,8 @@ méthodes du modèle `GrowingPlant`.
 
 | Signe | Quand |
 | --- | --- |
-| soleil | `current_luminosity` ≥ `WELL_LIT_INTENSITY` (40 %) |
-| nuage | `current_luminosity` < `WELL_LIT_INTENSITY` |
+| soleil | niveau de lumière ≥ `WELL_LIT_LEVEL` (`nor`) |
+| nuage | niveau de lumière < `WELL_LIT_LEVEL` |
 | thermomètre | `current_temperature` > `temperature_max` |
 | flocon | `current_temperature` < `temperature_min` |
 | goutte d'eau | `current_humidity` < `humidity_min` |
@@ -169,12 +169,15 @@ méthodes du modèle `GrowingPlant`.
 Une mesure absente n'affiche aucun signe, et une plante récoltée n'en affiche
 aucun non plus.
 
-`current_luminosity` est l'**intensité** lumineuse reçue par la plante, en
-pourcentage : 0 % dans le noir, 90 % en pleine lumière. C'est une grandeur
-différente de `luminosity_per_day` du type de plante, qui reste le nombre
-d'**heures** de lumière par jour dont l'espèce a besoin ; les deux ne se
-comparent donc pas directement, et le signe soleil/nuage se lit sur la seule
-intensité.
+`current_luminosity` est le **niveau** de lumière reçu par la plante. Les
+capteurs ne donnent pas un nombre mais l'un de cinq paliers — `low-`, `low`,
+`nor`, `high`, `high+` — rangés dans `LUMINOSITY_LEVELS` et stockés par leur
+rang, de 0 à 4. L'interface les écrit en mots : très faible, faible, normale,
+forte, très forte. Une valeur hors de cette échelle est traitée comme inconnue.
+
+C'est une grandeur différente de `luminosity_per_day` du type de plante, qui
+reste le nombre d'**heures** de lumière par jour dont l'espèce a besoin ; les
+deux ne se comparent pas, et le signe soleil/nuage se lit sur le seul niveau.
 
 ## Les plantes de la page principale
 
@@ -257,7 +260,8 @@ l'URL suit (`?plant=<id>`).
 
 Les séries sont construites en relisant les payloads des sept derniers jours avec
 les clés de chaque capteur, donc deux capteurs qui nomment leurs mesures
-autrement alimentent les mêmes courbes. Les courbes sont dessinées par
+autrement alimentent les mêmes courbes. La courbe de lumière est tracée en
+marches sur ses cinq paliers nommés, les deux autres en lignes. Les courbes sont dessinées par
 ApexCharts (`static/apexcharts.min.js`, `static/plant-metrics.js`).
 
 Trois choix de lisibilité : une seule série par graphique, donc pas de légende —

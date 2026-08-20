@@ -40,6 +40,12 @@
 
   function options(holder, points) {
     var unit = holder.dataset.unit;
+    // A measure reported as one of a few named levels is drawn on its own
+    // scale: steps between the levels, and their names along the axis.
+    var ticks = holder.dataset.ticks ? holder.dataset.ticks.split('|') : null;
+    var named = function (value) {
+      return ticks[Math.round(value)] || '';
+    };
     return {
       chart: {
         type: 'line',
@@ -50,8 +56,9 @@
       },
       series: [{ name: holder.dataset.title, data: points }],
       colors: [holder.dataset.colour],
-      // Straight segments: a smoothed curve would invent measures between two points.
-      stroke: { curve: 'straight', width: 2 },
+      // Straight segments: a smoothed curve would invent measures between two
+      // points. A level holds until the next reading, hence the steps.
+      stroke: { curve: ticks ? 'stepline' : 'straight', width: 2 },
       markers: { size: 4, hover: { size: 6 } },
       dataLabels: { enabled: false },
       legend: { show: false },
@@ -64,7 +71,12 @@
         crosshairs: { show: true },
         tooltip: { enabled: false },
       },
-      yaxis: {
+      yaxis: ticks ? {
+        min: 0,
+        max: ticks.length - 1,
+        tickAmount: ticks.length - 1,
+        labels: { style: { colors: INK, fontSize: '11px' }, formatter: named },
+      } : {
         labels: { style: { colors: INK, fontSize: '11px' } },
       },
       tooltip: {
@@ -72,7 +84,7 @@
         intersect: false,
         shared: false,
         x: { format: 'dd MMM HH:mm' },
-        y: { formatter: function (value) { return value + ' ' + unit; } },
+        y: { formatter: function (value) { return ticks ? named(value) : value + ' ' + unit; } },
       },
     };
   }

@@ -1098,3 +1098,10 @@ body {
 }
 
 .metric-table td { font-variant-numeric: tabular-nums; }
+
+/* A level is a word, not a figure: it takes the room a word needs. */
+.metric-tile-level {
+  display: inline-block;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
