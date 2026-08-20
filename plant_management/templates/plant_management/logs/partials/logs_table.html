@@ -12,7 +12,10 @@
       {% for log in logs %}
         <tr>
           <td><span class="log-level log-level-{{ log.type|lower }}">{{ log.type }}</span></td>
-          <td class="log-time">{{ log.time|date:"d/m/Y H:i:s" }}</td>
+          <td class="log-time">
+            <span class="log-day">{{ log.time|date:"d/m/Y" }}</span>
+            <span class="log-hour">{{ log.time|date:"H:i:s" }}</span>
+          </td>
           <td class="log-message">{{ log.message }}</td>
         </tr>
       {% endfor %}

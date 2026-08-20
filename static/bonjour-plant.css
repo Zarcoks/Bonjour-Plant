@@ -430,6 +430,13 @@ body {
   color: var(--gray-400);
 }
 
+/* Inside a row-cols grid, a child is confined to one column: the empty message
+   takes the whole width back, so that it is centred on the page. */
+.row > .grid-empty {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
 .empty-state i { font-size: 2.5rem; color: var(--plant-leaf); }
 .empty-state p { margin: 12px 0 0; }
 
@@ -514,6 +521,38 @@ body {
   /* Fallback for a record carrying a type the page does not know. */
   background-color: var(--gray-100);
   color: var(--gray-500);
+}
+
+/* On a narrow screen, the date gives its room back to the message. */
+@media (max-width: 720px) {
+  /* Fixed layout: the declared widths are honoured, so what is left goes to
+     the message instead of being claimed by the two narrow columns. */
+  .log-table { table-layout: fixed; }
+
+  .log-table thead th,
+  .log-table tbody td { padding: 10px 10px; }
+
+  .log-col-level { width: 74px; }
+  .log-col-time { width: 82px; }
+
+  .log-time {
+    white-space: normal;
+    font-size: .76rem;
+  }
+
+  .log-day, .log-hour { display: block; }
+
+  .log-level {
+    padding: 3px 7px;
+    font-size: .62rem;
+    /* A record can carry any type: it wraps rather than spilling over. */
+    overflow-wrap: anywhere;
+  }
+
+  .log-message {
+    font-size: .82rem;
+    overflow-wrap: anywhere;
+  }
 }
 
 .log-level-debug   { background-color: var(--gray-100);   color: var(--gray-500); }
@@ -770,16 +809,29 @@ body {
   align-items: center;
   gap: 10px;
   margin: 4px 0 16px;
-  padding: 8px 16px;
+  padding: 9px 18px;
   border-radius: var(--radius-pill);
-  background-color: var(--gray-50);
+  background-color: var(--plant-light-green);
+  border: 1px solid rgba(47, 158, 98, .35);
   font-size: .85rem;
   font-weight: 500;
   color: var(--plant-deep-green);
   cursor: pointer;
 }
 
-.harvested-check .form-check-input { margin: 0; cursor: pointer; }
+/* Ticked: the control takes the colours of a harvested plant. */
+.harvested-check:has(.form-check-input:checked) {
+  background-color: var(--sun-light);
+  border-color: var(--sun);
+  color: #97710A;
+}
+
+.harvested-check .form-check-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
 
 .harvested-check .form-check-input:checked {
   background-color: var(--plant-green);
@@ -790,6 +842,10 @@ body {
   .growing-card-main { flex-direction: column; }
   .growing-card-media { flex-basis: auto; }
   .growing-card-media img { min-height: 0; aspect-ratio: 40 / 21; }
+
+  /* Being edited, the card is a form first: the photo shrinks to a banner so
+     that the fields and the harvested control stay within reach. */
+  .growing-card.is-open .growing-card-media img { aspect-ratio: 40 / 11; }
 }
 
 /* ── Harvested plants ─────────────────────────────────────── */
