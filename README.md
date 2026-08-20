@@ -257,6 +257,23 @@ L'entrée ne vit que trois synchronisations : un worker qui s'arrête de parler
 cesse d'être annoncé comme à l'écoute, et la page passe à « Le worker n'écoute
 pas ». Le worker efface aussi l'entrée quand il se déconnecte ou s'arrête.
 
+### Quand plus personne n'écoute
+
+`worker_ready` ne part qu'au démarrage d'un worker, et le message est acquitté
+dès qu'un enfant du pool le prend : un enfant tué emporte l'écoute avec lui, et
+rien ne la ramènerait. La tâche `mqtt_worker.watch_the_listening`, planifiée
+toutes les `MQTT_WATCH_SECONDS` (60 s par défaut), s'en charge — elle remet
+l'écoute en file dès que plus personne ne la tient.
+
+Le « qui la tient » est une réservation en cache prise atomiquement
+(`cache.add`), séparée des abonnements : un listener qui démarre, ou qui
+réessaie sur un broker muet, tient l'écoute sans avoir encore un seul topic à
+montrer. Sans cette distinction, la surveillance empilerait une écoute par
+minute pendant une panne de broker, et toutes se réveilleraient ensemble en
+enregistrant chaque mesure en double. Personne ne rend jamais la réservation :
+elle se perd en n'étant plus rafraîchie, ce qui est exactement ce que fait un
+processus tué.
+
 Un Redis injoignable ne casse rien : le cache est configuré en
 `IGNORE_EXCEPTIONS`, les pages restent servies, et le panneau dit simplement
 qu'il n'a rien à annoncer.

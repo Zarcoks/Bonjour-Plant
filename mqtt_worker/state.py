@@ -11,6 +11,11 @@ from django.utils import timezone
 
 CACHE_KEY = 'mqtt:subscriptions'
 
+# Held by whoever is listening, or about to. Kept apart from the subscriptions:
+# a listener that is starting, or retrying on a broker that does not answer, holds
+# the listening without having a single topic to show yet.
+ALIVE_KEY = 'mqtt:listener-alive'
+
 # How many synchronisations an entry survives without being written again.
 FRESHNESS_FACTOR = 3
 
@@ -26,6 +31,29 @@ def publish(broker, topics):
         'topics': sorted(topics),
         'at': timezone.now(),
     }, timeout=freshness_seconds())
+    keep_alive()
+
+
+def keep_alive():
+    """Says the listening is still held, for a while longer."""
+    cache.set(ALIVE_KEY, True, timeout=freshness_seconds())
+
+
+def claim():
+    """
+    Takes the listening, unless somebody holds it already.
+
+    Atomic, so that two schedulers cannot both start a listener: two listeners
+    on the same topics would record every measure twice. Nobody ever hands the
+    listening back — it is let go by not being kept alive, which is exactly what
+    a killed process does.
+    """
+    return bool(cache.add(ALIVE_KEY, True, timeout=freshness_seconds()))
+
+
+def is_taken():
+    """Whether somebody is listening, or on their way to."""
+    return cache.get(ALIVE_KEY) is not None
 
 
 def read():
