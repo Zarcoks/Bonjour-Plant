@@ -6,6 +6,6 @@ The worker copying the measures of the sensors onto the plants they watch.
 schedule inside the Celery worker.
 """
 from .measures import read_measures
-from .sync import sync_plants
+from .sync import growing_state_moved, sync_plants
 
-__all__ = ['read_measures', 'sync_plants']
+__all__ = ['read_measures', 'growing_state_moved', 'sync_plants']

@@ -27,23 +27,46 @@ def freshest_measures(plant):
     return {field: value for field, (moment, value) in freshest.items()}, unreadable
 
 
+def growing_state_moved(plant):
+    """
+    Sets how far along the plant should be, and answers whether that moved.
+
+    Unlike the measures, this one owes nothing to the sensors: it follows the
+    calendar, so it is worked out at every pass. A harvested plant keeps the
+    progression it had — its growing is over, and counting on would carry it
+    past its own harvest.
+    """
+    if plant.harvested:
+        return False
+    expected = plant.expected_growing_state()
+    if expected is None or plant.growing_state == expected:
+        return False
+    plant.growing_state = expected
+    return True
+
+
 def sync_plants():
     """
-    Copies the measures of the sensors onto the plants, and says what it did.
+    Copies the measures of the sensors onto the plants, brings their progression
+    up to date, and says what it did.
 
-    A plant whose measures have not moved is left alone, and only the fields
-    that changed are written.
+    A plant with nothing to change is left alone, and only the fields that
+    changed are written — in a single write.
     """
-    summary = {'plants': 0, 'measures': 0, 'unreadable': 0}
+    summary = {'plants': 0, 'measures': 0, 'unreadable': 0, 'grown': 0}
     for plant in GrowingPlant.objects.filter(is_deleted=False):
         measures, unreadable = freshest_measures(plant)
         summary['unreadable'] += unreadable
+
         changed = [field for field, value in measures.items() if getattr(plant, field) != value]
-        if not changed:
-            continue
         for field in changed:
             setattr(plant, field, measures[field])
-        plant.save(update_fields=changed)
+        grown = growing_state_moved(plant)
+
+        if not changed and not grown:
+            continue
+        plant.save(update_fields=changed + (['growing_state'] if grown else []))
         summary['plants'] += 1
         summary['measures'] += len(changed)
+        summary['grown'] += 1 if grown else 0
     return summary

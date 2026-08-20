@@ -1,5 +1,8 @@
+import datetime
+
 from django.db import models
 from django.templatetags.static import static
+from django.utils import timezone
 
 # The photos shown for a plant type or a sensor that has no picture of its own yet.
 DEFAULT_PLANT_TYPE_PHOTO = 'plant-type-default.svg'
@@ -85,6 +88,23 @@ class GrowingPlant(models.Model):
     def get_photo_url(self):
         """A growing plant is pictured by its type, which falls back to the default illustration."""
         return self.plant_type.get_photo_url()
+
+    def expected_growing_state(self):
+        """
+        How far along the plant should be, in percent, from what it was planted
+        for: the time gone by since it was planted, over the days its species
+        takes to be ready.
+
+        The hour counts, so the figure creeps up during the day rather than
+        jumping at midnight. Kept between 0 and 100: a plant left in the ground
+        past its harvest is ready, not twice ready. None when there is nothing
+        to work it out from.
+        """
+        if self.planted_date is None or not self.plant_type.harvest_days:
+            return None
+        gone_by = timezone.now() - self.planted_date
+        ready_in = datetime.timedelta(days=self.plant_type.harvest_days)
+        return max(0, min(100, round(gone_by / ready_in * 100)))
 
     # The measures below are compared to what the plant type asks for. Each one
     # answers None when the measure is missing: the card then shows no sign at all.

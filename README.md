@@ -257,6 +257,19 @@ L'entrée ne vit que trois synchronisations : un worker qui s'arrête de parler
 cesse d'être annoncé comme à l'écoute, et la page passe à « Le worker n'écoute
 pas ». Le worker efface aussi l'entrée quand il se déconnecte ou s'arrête.
 
+### L'arrosage
+
+À chaque mesure reçue, `mqtt_worker/watering.py` compare l'humidité à celle de la
+dernière mesure du même capteur prise **au moins trois minutes plus tôt**
+(`LOOK_BACK`). Une hausse de plus de `HUMIDITY_RISE` points — 15 par défaut —
+signe un arrosage : `last_watering` de la plante prend l'heure de la mesure, et
+le journal en garde une ligne.
+
+C'est bien une **hausse** qui est cherchée, et non un écart : une humidité qui
+descend est un sol qui sèche, l'inverse d'un arrosage. La comparaison se fait
+capteur par capteur et plante par plante, et lit chaque payload avec les clés du
+capteur qui l'a envoyé.
+
 ### Quand plus personne n'écoute
 
 `worker_ready` ne part qu'au démarrage d'un worker, et le message est acquitté
@@ -318,8 +331,16 @@ capteurs donnent la même mesure, la donnée la plus récente gagne. Les valeurs
 sont converties à ce que le modèle attend : humidité et luminosité arrondies,
 température en flottant.
 
+Le même passage met à jour **l'avancement de la croissance** : le temps écoulé
+depuis la plantation, heure comprise, divisé par les jours que l'espèce met à
+être prête (`harvest_days` du type de plante). Contrairement aux mesures, cet
+avancement ne doit rien aux capteurs — il suit le calendrier, il est donc
+recalculé pour chaque plante à chaque passage. Il est borné à 100 %, et une
+plante récoltée garde l'avancement qu'elle avait : sa croissance est finie, et
+continuer à compter l'emmènerait au-delà de sa propre récolte.
+
 Rien n'est écrit quand rien n'a bougé, et seuls les champs modifiés sont
-enregistrés. Un passage qui se déroule bien ne journalise rien ; seuls les
+enregistrés — mesures et avancement dans une seule écriture. Un passage qui se déroule bien ne journalise rien ; seuls les
 payloads illisibles produisent un avertissement, groupé par passage. Une clé absente du payload laisse la mesure correspondante
 inchangée ; un payload qui n'est pas un objet JSON est ignoré.
 

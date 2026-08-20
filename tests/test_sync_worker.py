@@ -2,6 +2,7 @@
 import datetime
 
 import pytest
+from django.utils import timezone
 
 from plant_management.models import GrowingPlant, Sensor, SensorData
 from sync_worker import read_measures, sync_plants
@@ -10,7 +11,14 @@ from sync_worker.tasks import sync_sensors_to_plants
 
 @pytest.fixture
 def watched(sensor, growing_plant):
-    """A sensor watching a plant, naming its measures the usual way."""
+    """
+    A sensor watching a plant, naming its measures the usual way.
+
+    The planting date is dropped so that the progression cannot move: these
+    tests are about the measures, and about them only.
+    """
+    growing_plant.planted_date = None
+    growing_plant.save()
     sensor.plant = growing_plant
     sensor.save()
     return sensor
@@ -103,7 +111,7 @@ def test_a_real_payload_of_the_sensor_is_read(sensor):
 
 def test_the_last_measures_land_on_the_plant(watched, growing_plant):
     measure(watched, '{"humidity": 65, "luminosity": "high+", "temperature": 22.5}')
-    assert sync_plants() == {'plants': 1, 'measures': 3, 'unreadable': 0}
+    assert sync_plants() == {'plants': 1, 'measures': 3, 'unreadable': 0, 'grown': 0}
     growing_plant.refresh_from_db()
     assert growing_plant.current_humidity == 65
     assert growing_plant.current_luminosity == 4
@@ -150,13 +158,13 @@ def test_a_deleted_sensor_is_not_listened_to(watched, growing_plant):
 
 
 def test_a_plant_without_any_data_is_left_alone(watched, growing_plant):
-    assert sync_plants() == {'plants': 0, 'measures': 0, 'unreadable': 0}
+    assert sync_plants() == {'plants': 0, 'measures': 0, 'unreadable': 0, 'grown': 0}
 
 
 def test_a_plant_whose_measures_have_not_moved_is_not_written_again(watched, growing_plant):
     measure(watched, '{"humidity": 65}')
     assert sync_plants()['plants'] == 1
-    assert sync_plants() == {'plants': 0, 'measures': 0, 'unreadable': 0}
+    assert sync_plants() == {'plants': 0, 'measures': 0, 'unreadable': 0, 'grown': 0}
 
 
 def test_a_deleted_plant_is_not_synchronised(watched, growing_plant):
@@ -168,7 +176,7 @@ def test_a_deleted_plant_is_not_synchronised(watched, growing_plant):
 
 def test_an_unreadable_payload_is_counted_and_skipped(watched, growing_plant):
     measure(watched, "pas du json")
-    assert sync_plants() == {'plants': 0, 'measures': 0, 'unreadable': 1}
+    assert sync_plants() == {'plants': 0, 'measures': 0, 'unreadable': 1, 'grown': 0}
     growing_plant.refresh_from_db()
     assert growing_plant.current_humidity == 72
 
@@ -177,7 +185,7 @@ def test_an_unreadable_payload_is_counted_and_skipped(watched, growing_plant):
 
 def test_the_task_synchronises(watched, growing_plant, db):
     measure(watched, '{"humidity": 65}')
-    assert sync_sensors_to_plants() == {'plants': 1, 'measures': 1, 'unreadable': 0}
+    assert sync_sensors_to_plants() == {'plants': 1, 'measures': 1, 'unreadable': 0, 'grown': 0}
     growing_plant.refresh_from_db()
     assert growing_plant.current_humidity == 65
 
@@ -198,3 +206,89 @@ def test_the_task_warns_about_unreadable_payloads(watched, growing_plant, db):
     measure(watched, "pas du json")
     sync_sensors_to_plants()
     assert AppLog.objects.filter(type="WARNING", message__contains="illisible").count() == 1
+
+
+# --- How far along the plant is ---
+
+def planted_days_ago(plant, days, harvest_days=60):
+    """Plants it that long ago, on a species ready in that many days."""
+    plant.plant_type.harvest_days = harvest_days
+    plant.plant_type.save()
+    plant.planted_date = timezone.now() - datetime.timedelta(days=days)
+    plant.growing_state = 0
+    plant.save()
+    return plant
+
+
+def test_the_progression_follows_the_calendar(db, growing_plant):
+    planted_days_ago(growing_plant, 30, harvest_days=60)
+    assert sync_plants() == {'plants': 1, 'measures': 0, 'unreadable': 0, 'grown': 1}
+    growing_plant.refresh_from_db()
+    assert growing_plant.growing_state == 50
+
+
+def test_the_hour_counts_in_the_progression(db, growing_plant):
+    growing_plant.plant_type.harvest_days = 2
+    growing_plant.plant_type.save()
+    growing_plant.planted_date = timezone.now() - datetime.timedelta(hours=12)
+    growing_plant.growing_state = 0
+    growing_plant.save()
+    sync_plants()
+    growing_plant.refresh_from_db()
+    # Half a day of two: a quarter of the way, not nothing.
+    assert growing_plant.growing_state == 25
+
+
+def test_a_plant_left_past_its_harvest_stays_at_a_hundred(db, growing_plant):
+    planted_days_ago(growing_plant, 200, harvest_days=60)
+    sync_plants()
+    growing_plant.refresh_from_db()
+    assert growing_plant.growing_state == 100
+
+
+def test_a_progression_that_has_not_moved_is_not_written_again(db, growing_plant):
+    planted_days_ago(growing_plant, 30, harvest_days=60)
+    assert sync_plants()['grown'] == 1
+    assert sync_plants()['grown'] == 0
+
+
+def test_a_harvested_plant_keeps_the_progression_it_had(db, harvested_plant):
+    harvested_plant.plant_type.harvest_days = 60
+    harvested_plant.plant_type.save()
+    harvested_plant.planted_date = timezone.now() - datetime.timedelta(days=200)
+    harvested_plant.growing_state = 80
+    harvested_plant.save()
+    assert sync_plants()['grown'] == 0
+    harvested_plant.refresh_from_db()
+    assert harvested_plant.growing_state == 80
+
+
+def test_a_plant_without_a_planting_date_has_no_progression(db, growing_plant):
+    growing_plant.planted_date = None
+    growing_plant.growing_state = 42
+    growing_plant.save()
+    assert sync_plants()['grown'] == 0
+    growing_plant.refresh_from_db()
+    assert growing_plant.growing_state == 42
+
+
+def test_a_species_without_a_harvest_delay_has_no_progression(db, growing_plant):
+    planted_days_ago(growing_plant, 30, harvest_days=0)
+    assert sync_plants()['grown'] == 0
+
+
+def test_a_plant_planted_in_the_future_is_at_nothing(db, growing_plant):
+    planted_days_ago(growing_plant, -10, harvest_days=60)
+    growing_plant.growing_state = 50
+    growing_plant.save()
+    sync_plants()
+    growing_plant.refresh_from_db()
+    assert growing_plant.growing_state == 0
+
+
+def test_measures_and_progression_are_written_together(watched, growing_plant):
+    planted_days_ago(growing_plant, 30, harvest_days=60)
+    measure(watched, '{"humidity": 65}')
+    assert sync_plants() == {'plants': 1, 'measures': 1, 'unreadable': 0, 'grown': 1}
+    growing_plant.refresh_from_db()
+    assert (growing_plant.current_humidity, growing_plant.growing_state) == (65, 50)

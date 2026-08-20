@@ -12,7 +12,7 @@ from paho.mqtt.enums import CallbackAPIVersion
 from core.app import app
 from plant_management.models import Sensor, SensorData
 
-from . import state
+from . import state, watering
 from .broker import broker_from_url
 
 logger = app.module_logger("mqtt")
@@ -79,7 +79,10 @@ class SensorListener:
                 # logger.debug("Donnée ignorée sur " + topic + " : le capteur "
                 #              + sensor.name + " n'est assigné à aucune plante")
                 continue
-            recorded.append(SensorData.objects.create(sensor=sensor, plant=sensor.plant, payload=payload))
+            data = SensorData.objects.create(sensor=sensor, plant=sensor.plant, payload=payload)
+            recorded.append(data)
+            # A jump of humidity since a few minutes ago means somebody watered.
+            watering.spot(sensor, data)
             # logger.debug("Donnée enregistrée sur " + topic + " pour " + sensor.plant.display_name)
         # if not recorded:
         #     logger.debug("Aucun capteur assigné n'écoute " + topic + " : donnée abandonnée")
