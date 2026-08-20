@@ -5,6 +5,12 @@ from django.templatetags.static import static
 DEFAULT_PLANT_TYPE_PHOTO = 'plant-type-default.svg'
 DEFAULT_SENSOR_PHOTO = 'sensor-default.svg'
 
+# The keys a measure usually carries in a payload, for a sensor that names them
+# the plain way. A sensor naming them otherwise says so on its own fields.
+DEFAULT_HUMIDITY_LABEL = 'humidity'
+DEFAULT_LUMINOSITY_LABEL = 'luminosity'
+DEFAULT_TEMPERATURE_LABEL = 'temperature'
+
 
 class PlantType(models.Model):
     """A plant species known by the application, with its ideal growing conditions."""
@@ -95,6 +101,14 @@ class Sensor(models.Model):
     mqtt_topic = models.CharField("topic MQTT", max_length=200)
     photo = models.ImageField("photo", upload_to='sensors/', blank=True)
 
+    # How this sensor names its measures in the payload it publishes.
+    humidity_payload_label = models.CharField("humidité (clé du payload)", max_length=120, blank=True,
+                                              default=DEFAULT_HUMIDITY_LABEL)
+    luminosity_payload_label = models.CharField("luminosité (clé du payload)", max_length=120, blank=True,
+                                                default=DEFAULT_LUMINOSITY_LABEL)
+    temperature_payload_label = models.CharField("température (clé du payload)", max_length=120, blank=True,
+                                                 default=DEFAULT_TEMPERATURE_LABEL)
+
     class Meta:
         ordering = ['name']
 
@@ -105,6 +119,17 @@ class Sensor(models.Model):
         if self.photo:
             return self.photo.url
         return static(DEFAULT_SENSOR_PHOTO)
+
+    # A label left empty falls back on the usual name, so that a sensor written
+    # outside the interface still reads its payload.
+    def get_humidity_label(self):
+        return self.humidity_payload_label or DEFAULT_HUMIDITY_LABEL
+
+    def get_luminosity_label(self):
+        return self.luminosity_payload_label or DEFAULT_LUMINOSITY_LABEL
+
+    def get_temperature_label(self):
+        return self.temperature_payload_label or DEFAULT_TEMPERATURE_LABEL
 
 
 class SensorData(models.Model):

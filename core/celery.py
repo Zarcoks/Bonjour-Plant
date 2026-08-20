@@ -13,8 +13,20 @@ app = Celery('bonjour_plant')
 #   should have a `CELERY_` prefix.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load task modules from all registered Django apps, and from the MQTT worker.
+# Load task modules from all registered Django apps, and from both workers.
 app.autodiscover_tasks()
-app.autodiscover_tasks(['mqtt_worker'], related_name='tasks')
+app.autodiscover_tasks(['mqtt_worker', 'sync_worker'], related_name='tasks')
 
 app.conf.timezone = 'Europe/Paris'
+
+# How often the measures of the sensors are written on the plants. Read from the
+# environment rather than from the settings: the schedule is built at import
+# time, before Django is ready.
+PLANT_SYNC_SECONDS = int(os.environ.get("PLANT_SYNC_SECONDS", 30))
+
+app.conf.beat_schedule = {
+    'sync_sensors_to_plants': {
+        'task': 'sync_worker.sync_sensors_to_plants',
+        'schedule': PLANT_SYNC_SECONDS,
+    },
+}

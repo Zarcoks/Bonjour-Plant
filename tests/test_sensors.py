@@ -179,3 +179,61 @@ def test_a_deleted_sensor_cannot_be_reached(client, sensor):
     sensor.save()
     for name in ["sensor_detail", "sensor_card"]:
         assert client.get(reverse(name, kwargs={"sensor_id": sensor.pk})).status_code == 404
+
+
+# --- Reading the payload of a sensor ---
+
+def test_a_new_sensor_names_its_measures_the_usual_way(client, db, sensor_payload):
+    client.post(reverse("create_sensor"), sensor_payload)
+    created = Sensor.objects.get(name="Thermomètre de la serre")
+    assert created.humidity_payload_label == "humidity"
+    assert created.luminosity_payload_label == "luminosity"
+    assert created.temperature_payload_label == "temperature"
+
+
+def test_the_labels_can_be_chosen_at_creation(client, db, sensor_payload):
+    client.post(reverse("create_sensor"), dict(sensor_payload, temperature_payload_label="temp"))
+    assert Sensor.objects.get(name="Thermomètre de la serre").temperature_payload_label == "temp"
+
+
+def test_the_labels_are_shown_in_both_forms(client, sensor):
+    for url in [reverse("create_sensor"), reverse("sensor_detail", kwargs={"sensor_id": sensor.pk})]:
+        content = client.get(url).content.decode()
+        for field in ['name="humidity_payload_label"', 'name="luminosity_payload_label"',
+                      'name="temperature_payload_label"']:
+            assert field in content
+        assert "clé du payload" in content
+
+
+def test_the_labels_can_be_edited(client, sensor, sensor_payload):
+    response = client.post(reverse("sensor_detail", kwargs={"sensor_id": sensor.pk}),
+                           dict(sensor_payload, humidity_payload_label="hum",
+                                luminosity_payload_label="lux", temperature_payload_label="temp"))
+    assert response.status_code == 200
+    sensor.refresh_from_db()
+    assert (sensor.humidity_payload_label, sensor.luminosity_payload_label,
+            sensor.temperature_payload_label) == ("hum", "lux", "temp")
+
+
+def test_a_label_left_empty_goes_back_to_the_usual_name(client, sensor, sensor_payload):
+    sensor.humidity_payload_label = "hum"
+    sensor.save()
+    client.post(reverse("sensor_detail", kwargs={"sensor_id": sensor.pk}),
+                dict(sensor_payload, humidity_payload_label=""))
+    sensor.refresh_from_db()
+    assert sensor.humidity_payload_label == "humidity"
+
+
+def test_a_label_emptied_outside_the_interface_still_reads(db):
+    sensor = Sensor.objects.create(name="Sonde muette", model="Test", mqtt_topic="test",
+                                   humidity_payload_label="", luminosity_payload_label="",
+                                   temperature_payload_label="")
+    assert sensor.get_humidity_label() == "humidity"
+    assert sensor.get_luminosity_label() == "luminosity"
+    assert sensor.get_temperature_label() == "temperature"
+
+
+def test_a_chosen_label_is_the_one_read(db):
+    sensor = Sensor.objects.create(name="Luxmètre", model="Test", mqtt_topic="test",
+                                   luminosity_payload_label="lux")
+    assert sensor.get_luminosity_label() == "lux"

@@ -165,7 +165,8 @@ class Command(BaseCommand):
         self.say("\nLe worker Celery démarre. Lancez `python manage.py runserver` à côté, "
                  "et Ctrl-C ici pour tout arrêter.\n", style=self.style.MIGRATE_HEADING)
         worker = subprocess.Popen(
-            [sys.executable, "-m", "celery", "-A", "core", "worker", "-l", "INFO", "--concurrency", "2"],
+            [sys.executable, "-m", "celery", "-A", "core", "worker", "--beat", "-l", "INFO",
+             "--concurrency", "2"],
             env=dict(os.environ,
                      REDIS_URL="redis://{}:6379/0".format(HOST),
                      MQTT_BROKER_URL="mqtt://{}:1883".format(HOST)),

@@ -9,6 +9,7 @@ simple comme bonjour.
   l'objet application
 - `Logging/` : l'objet loggueur de l'application
 - `mqtt_worker/` : le worker qui écoute les capteurs sur le broker MQTT
+- `sync_worker/` : le worker qui recopie les mesures reçues sur les plantes
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
@@ -42,7 +43,7 @@ Trois services :
 | --- | --- |
 | `caddy` | publie le port 80, sert `/static/` et `/media/`, proxifie le reste vers gunicorn |
 | `django-web` | l'application derrière gunicorn, sur le port 8000 interne |
-| `celery` | le worker qui écoute les capteurs sur MQTT |
+| `celery` | les deux workers : l'écoute MQTT et la synchronisation périodique |
 | `redis` | le courtier de messages de Celery |
 | `mqtt` | un broker Mosquitto de développement, sur le port 1883 |
 | `db` | PostgreSQL 17 |
@@ -194,6 +195,16 @@ Comme pour les plantes, la suppression est douce (`is_deleted`), demande
 confirmation, et la réponse renvoie `HX-Trigger: refresh-sensors` sur lequel la
 grille se recharge. Supprimer une plante libère les capteurs qui la suivaient.
 
+### Les clés du payload
+
+Deux capteurs ne nomment pas forcément leurs mesures pareil dans le JSON qu'ils
+publient. Chaque capteur porte donc trois champs texte, modifiables dans son
+interface : `humidity_payload_label`, `luminosity_payload_label` et
+`temperature_payload_label`. Ils valent `humidity`, `luminosity` et
+`temperature` par défaut ; un champ laissé vide reprend cette valeur à
+l'enregistrement, et les méthodes `get_*_label()` du modèle assurent le même
+repli pour une ligne écrite hors de l'interface.
+
 ## Le worker MQTT
 
 Le paquet `mqtt_worker/` écoute les capteurs. L'adresse du broker vient de
@@ -227,6 +238,25 @@ Pour écouter sans passer par Celery, en local :
 ```
 python manage.py listen_sensors
 ```
+
+## Le worker de synchronisation
+
+Le paquet `sync_worker/` recopie les mesures reçues sur les plantes. La tâche
+`sync_worker.sync_sensors_to_plants` tourne toutes les `PLANT_SYNC_SECONDS`
+(30 s par défaut), portée par l'ordonnanceur embarqué du worker Celery
+(`celery -A core worker --beat`).
+
+Pour chaque plante non supprimée, elle prend la **dernière** donnée de chacun de
+ses capteurs, lit le payload avec les clés de ce capteur, et écrit
+`current_humidity`, `current_luminosity` et `current_temperature`. Quand deux
+capteurs donnent la même mesure, la donnée la plus récente gagne. Les valeurs
+sont converties à ce que le modèle attend : humidité et luminosité arrondies,
+température en flottant.
+
+Rien n'est écrit quand rien n'a bougé, et seuls les champs modifiés sont
+enregistrés. Un passage qui se déroule bien ne journalise rien ; seuls les
+payloads illisibles produisent un avertissement, groupé par passage. Une clé absente du payload laisse la mesure correspondante
+inchangée ; un payload qui n'est pas un objet JSON est ignoré.
 
 ## Tests
 

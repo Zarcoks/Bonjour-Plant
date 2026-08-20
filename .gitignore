@@ -17,6 +17,7 @@ wheels/
 bonjour_plant_db
 staticfiles/
 media/
+celerybeat-schedule*
 volumes/
 
 .pytest_cache/

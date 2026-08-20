@@ -52,9 +52,11 @@ DEFAULT_SENSORS = [
     {'name': "Sonde d'humidité du balcon", 'model': "Zigbee SM-100",
      'mqtt_topic': "bonjour-plant/balcon/humidity", 'plant': "Basilic du balcon"},
     {'name': "Thermomètre de la serre", 'model': "Zigbee TH-220",
-     'mqtt_topic': "bonjour-plant/serre/temperature", 'plant': "Tomates de la serre"},
+     'mqtt_topic': "bonjour-plant/serre/temperature", 'plant': "Tomates de la serre",
+     'temperature_payload_label': "temp"},
     {'name': "Luxmètre du jardin", 'model': "LoRa LX-40",
-     'mqtt_topic': "bonjour-plant/jardin/luminosity", 'plant': "Fraisier du jardin"},
+     'mqtt_topic': "bonjour-plant/jardin/luminosity", 'plant': "Fraisier du jardin",
+     'luminosity_payload_label': "lux"},
     {'name': "Sonde d'humidité de rechange", 'model': "Zigbee SM-100",
      'mqtt_topic': "bonjour-plant/atelier/humidity", 'plant': None},
 ]
