@@ -130,6 +130,7 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/plant-types/create/` | `create_plant_type` | GET : formulaire de création, POST : création |
 | `/plant-types/<id>/` | `plant_type_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/plant-types/<id>/card/` | `plant_type_card` | carte repliée (sert aussi de « Annuler ») |
+| `/metrics/` | `metrics` | les mesures d'une plante dans le temps |
 | `/sensors/` | `sensors` | la grille des capteurs |
 | `/sensors/create/` | `create_sensor` | GET : formulaire de création, POST : création |
 | `/sensors/<id>/` | `sensor_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
@@ -159,14 +160,21 @@ méthodes du modèle `GrowingPlant`.
 
 | Signe | Quand |
 | --- | --- |
-| soleil | `current_luminosity` ≥ `luminosity_per_day` |
-| nuage | `current_luminosity` < `luminosity_per_day` |
+| soleil | `current_luminosity` ≥ `WELL_LIT_INTENSITY` (40 %) |
+| nuage | `current_luminosity` < `WELL_LIT_INTENSITY` |
 | thermomètre | `current_temperature` > `temperature_max` |
 | flocon | `current_temperature` < `temperature_min` |
 | goutte d'eau | `current_humidity` < `humidity_min` |
 
 Une mesure absente n'affiche aucun signe, et une plante récoltée n'en affiche
 aucun non plus.
+
+`current_luminosity` est l'**intensité** lumineuse reçue par la plante, en
+pourcentage : 0 % dans le noir, 90 % en pleine lumière. C'est une grandeur
+différente de `luminosity_per_day` du type de plante, qui reste le nombre
+d'**heures** de lumière par jour dont l'espèce a besoin ; les deux ne se
+comparent donc pas directement, et le signe soleil/nuage se lit sur la seule
+intensité.
 
 ## Les plantes de la page principale
 
@@ -238,6 +246,25 @@ Pour écouter sans passer par Celery, en local :
 ```
 python manage.py listen_sensors
 ```
+
+## La page métriques
+
+`/metrics/` montre une plante à la fois : l'interrupteur du haut la choisit —
+les plantes récoltées y sont proposées, nommées comme telles — puis viennent son
+état (photo, nom, type, date de plantation, récolte, mesures actuelles) et trois
+courbes, une par mesure. Changer de plante remplace le panneau seul, en HTMX, et
+l'URL suit (`?plant=<id>`).
+
+Les séries sont construites en relisant les payloads des sept derniers jours avec
+les clés de chaque capteur, donc deux capteurs qui nomment leurs mesures
+autrement alimentent les mêmes courbes. Les courbes sont dessinées par
+ApexCharts (`static/apexcharts.min.js`, `static/plant-metrics.js`).
+
+Trois choix de lisibilité : une seule série par graphique, donc pas de légende —
+le titre et sa pastille de couleur nomment la courbe ; les couleurs
+(`#0369A1`, `#A16207`, `#BE185D`) ont été validées pour le daltonisme et pour
+leur contraste sur blanc ; et un tableau dépliable sous les courbes donne les
+valeurs sans avoir à survoler quoi que ce soit.
 
 ## Le worker de synchronisation
 

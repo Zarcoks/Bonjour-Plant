@@ -1,0 +1,37 @@
+{% extends "plant_management/index.html" %}
+{% load static %}
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title page-title-sm">Métriques</h1>
+      <p class="page-subtitle">Ce que les capteurs ont mesuré ces {{ days|default:7 }} derniers jours.</p>
+    </div>
+
+    {% comment %}
+      The one filter of the page, above the curves: changing plant replaces the
+      panel alone and updates the address bar.
+    {% endcomment %}
+    <form class="plant-picker"
+          hx-get="{% url 'metrics' %}"
+          hx-target="#metrics-panel"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-push-url="true">
+      <label for="{{ form.plant.id_for_label }}">{{ form.plant.label|capfirst }}</label>
+      {{ form.plant }}
+    </form>
+  </div>
+
+  <div id="metrics-panel">
+    {% include "plant_management/metrics/partials/metrics_panel.html" %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'apexcharts.min.js' %}" defer></script>
+  <script src="{% static 'plant-metrics.js' %}" defer></script>
+{% endblock %}

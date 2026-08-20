@@ -43,7 +43,7 @@ def plant_type_payload():
 
 @pytest.fixture
 def growing_plant(plant_type):
-    """A plant growing well: every measure sits inside what its type asks for."""
+    """A plant growing well: warm enough, damp enough, and in the light."""
     return GrowingPlant.objects.create(
         display_name="Basilic du balcon",
         plant_type=plant_type,
@@ -52,7 +52,7 @@ def growing_plant(plant_type):
         growing_state=70,
         current_temperature=24.0,
         current_humidity=72,
-        current_luminosity=7,
+        current_luminosity=78,
         auto_luminosity=True,
     )
 

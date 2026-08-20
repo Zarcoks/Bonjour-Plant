@@ -29,9 +29,9 @@ def measure(sensor, payload, minutes_ago=0):
 # --- Reading a payload ---
 
 def test_the_usual_names_are_read(sensor):
-    assert read_measures(sensor, '{"humidity": 71, "luminosity": 8, "temperature": 21.5}') == {
+    assert read_measures(sensor, '{"humidity": 71, "luminosity": 80, "temperature": 21.5}') == {
         'current_humidity': 71,
-        'current_luminosity': 8,
+        'current_luminosity': 80,
         'current_temperature': 21.5,
     }
 
@@ -74,11 +74,11 @@ def test_a_json_payload_that_is_not_an_object_is_refused(sensor):
 # --- Writing on the plants ---
 
 def test_the_last_measures_land_on_the_plant(watched, growing_plant):
-    measure(watched, '{"humidity": 65, "luminosity": 9, "temperature": 22.5}')
+    measure(watched, '{"humidity": 65, "luminosity": 90, "temperature": 22.5}')
     assert sync_plants() == {'plants': 1, 'measures': 3, 'unreadable': 0}
     growing_plant.refresh_from_db()
     assert growing_plant.current_humidity == 65
-    assert growing_plant.current_luminosity == 9
+    assert growing_plant.current_luminosity == 90
     assert growing_plant.current_temperature == 22.5
 
 

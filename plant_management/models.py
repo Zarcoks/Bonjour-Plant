@@ -11,6 +11,12 @@ DEFAULT_HUMIDITY_LABEL = 'humidity'
 DEFAULT_LUMINOSITY_LABEL = 'luminosity'
 DEFAULT_TEMPERATURE_LABEL = 'temperature'
 
+# Above which share of light a plant counts as being in the light rather than in
+# the shade. What a sensor reports is an intensity: 0 % is darkness, 90 % is full
+# sun. It is not a duration — how many hours of light a species needs a day is
+# the business of its plant type.
+WELL_LIT_INTENSITY = 40
+
 
 class PlantType(models.Model):
     """A plant species known by the application, with its ideal growing conditions."""
@@ -56,7 +62,7 @@ class GrowingPlant(models.Model):
     growing_state = models.IntegerField("avancement (%)", default=0)
     current_temperature = models.FloatField("température actuelle", null=True, blank=True)
     current_humidity = models.IntegerField("humidité actuelle", null=True, blank=True)
-    current_luminosity = models.IntegerField("luminosité actuelle", null=True, blank=True)
+    current_luminosity = models.IntegerField("intensité lumineuse (%)", null=True, blank=True)
 
     class Meta:
         ordering = ['display_name']
@@ -70,10 +76,16 @@ class GrowingPlant(models.Model):
 
     # The measures below are compared to what the plant type asks for. Each one
     # answers None when the measure is missing: the card then shows no sign at all.
-    def has_enough_light(self):
+    def is_well_lit(self):
+        """
+        Whether the plant sits in the light rather than in the shade.
+
+        The measure is an intensity, so it is read against a share of light and
+        not against the hours a day its type asks for.
+        """
         if self.current_luminosity is None:
             return None
-        return self.current_luminosity >= self.plant_type.luminosity_per_day
+        return self.current_luminosity >= WELL_LIT_INTENSITY
 
     def is_too_hot(self):
         if self.current_temperature is None:

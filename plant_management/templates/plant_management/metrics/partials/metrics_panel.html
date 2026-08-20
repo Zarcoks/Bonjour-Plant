@@ -1,0 +1,96 @@
+{% comment %}The state of one plant and its curves, replaced on its own.{% endcomment %}
+{% if not plant %}
+  <div class="empty-state">
+    <i class="bi bi-graph-up"></i>
+    <p>Aucune plante à suivre pour l'instant.</p>
+  </div>
+{% else %}
+
+  <section class="plant-summary">
+    <img class="plant-summary-photo" src="{{ plant.get_photo_url }}" alt="{{ plant.display_name }}">
+
+    <div class="plant-summary-identity">
+      <h2>{{ plant.display_name }}</h2>
+      <p class="plant-summary-type">{{ plant.plant_type.plant_name }}</p>
+      <p class="plant-summary-planted">
+        <i class="bi bi-calendar3"></i>
+        {% if plant.planted_date %}
+          Planté le {{ plant.planted_date|date:"j F Y" }}
+        {% else %}
+          Date de plantation inconnue
+        {% endif %}
+      </p>
+      {% if plant.harvested %}
+        <p class="growing-badge">
+          <i class="bi bi-basket2"></i>
+          Récoltée{% if plant.harvest_day %} le {{ plant.harvest_day|date:"j F Y" }}{% endif %}
+        </p>
+      {% else %}
+        <p class="plant-summary-growing">Croissance : <strong>{{ plant.growing_state }} %</strong></p>
+      {% endif %}
+    </div>
+
+    <div class="plant-summary-now">
+      {% for curve in curves %}
+        <div class="metric-tile" style="--metric-colour: {{ curve.colour }};">
+          <span class="metric-tile-name">{{ curve.title }}</span>
+          <span class="metric-tile-value">
+            {% if curve.field == 'current_humidity' %}{{ plant.current_humidity|default_if_none:"—" }}{% endif %}
+            {% if curve.field == 'current_luminosity' %}{{ plant.current_luminosity|default_if_none:"—" }}{% endif %}
+            {% if curve.field == 'current_temperature' %}{{ plant.current_temperature|default_if_none:"—" }}{% endif %}
+            <span class="metric-tile-unit">{{ curve.unit }}</span>
+          </span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="metric-charts">
+    {% for curve in curves %}
+      <section class="metric-card">
+        <h3 class="metric-card-title">
+          <span class="metric-card-mark" style="background-color: {{ curve.colour }};"></span>
+          {{ curve.title }} <span class="metric-card-unit">({{ curve.unit }})</span>
+        </h3>
+        {% if curve.points %}
+          {{ curve.points|json_script:curve.field }}
+          <div class="metric-chart"
+               data-metric="{{ curve.field }}"
+               data-title="{{ curve.title }}"
+               data-unit="{{ curve.unit }}"
+               data-colour="{{ curve.colour }}"></div>
+        {% else %}
+          <p class="metric-card-empty">Aucune mesure sur la période.</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+
+  {% if moments %}
+    {% comment %}The values are readable without hovering anything.{% endcomment %}
+    <details class="metric-table-details">
+      <summary>Voir les valeurs</summary>
+      <div class="log-table-wrapper">
+        <table class="log-table metric-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              {% for curve in curves %}<th>{{ curve.title }} ({{ curve.unit }})</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for moment in moments %}
+              <tr>
+                <td class="log-time">{{ moment.time|date:"d/m/Y H:i:s" }}</td>
+                <td>{{ moment.measures.current_humidity|default_if_none:"—" }}</td>
+                <td>{{ moment.measures.current_luminosity|default_if_none:"—" }}</td>
+                <td>{{ moment.measures.current_temperature|default_if_none:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% endif %}
+
+{% endif %}

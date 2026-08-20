@@ -39,6 +39,10 @@
 /* ── Base ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* The scrollbar always keeps its place: a page that grows must not narrow the
+   charts after they were drawn. */
+html { scrollbar-gutter: stable; }
+
 body {
   margin: 0;
   font-family: 'Poppins', sans-serif;
@@ -920,3 +924,177 @@ body {
 
 .sensor-assignment.is-free { color: var(--gray-400); }
 .sensor-assignment.is-free i { color: var(--gray-300); }
+
+/* ── Metrics page ─────────────────────────────────────────── */
+.plant-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background-color: #fff;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
+}
+
+.plant-picker label {
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin: 0;
+}
+
+.plant-picker .form-select { min-width: 220px; }
+
+/* ── The plant, above its curves ──────────────────────────── */
+.plant-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.plant-summary-photo {
+  width: 132px;
+  height: 132px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background-color: var(--plant-light-green);
+}
+
+.plant-summary-identity { flex: 1 1 240px; min-width: 0; }
+
+.plant-summary-identity h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--plant-deep-green);
+}
+
+.plant-summary-type {
+  margin: 2px 0 10px;
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--plant-green);
+}
+
+.plant-summary-planted, .plant-summary-growing {
+  margin: 0;
+  font-size: .875rem;
+  color: var(--gray-500);
+}
+
+.plant-summary-planted i { color: var(--plant-leaf); }
+.plant-summary-growing { margin-top: 4px; }
+.plant-summary-growing strong { color: var(--plant-deep-green); }
+.plant-summary .growing-badge { margin-top: 8px; }
+
+.plant-summary-now {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.metric-tile {
+  min-width: 116px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--metric-colour);
+  border-radius: var(--radius-sm);
+  background-color: var(--gray-50);
+}
+
+.metric-tile-name {
+  display: block;
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: var(--gray-400);
+}
+
+.metric-tile-value {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--plant-deep-green);
+}
+
+.metric-tile-unit {
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--gray-400);
+}
+
+/* ── The curves ───────────────────────────────────────────── */
+.metric-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.metric-card {
+  padding: 18px 20px 8px;
+  background-color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.metric-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--plant-deep-green);
+}
+
+.metric-card-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.metric-card-unit {
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--gray-400);
+}
+
+.metric-card-empty {
+  margin: 12px 0 16px;
+  font-size: .875rem;
+  color: var(--gray-400);
+}
+
+/* ── The values, without hovering ─────────────────────────── */
+.metric-table-details {
+  margin-top: 20px;
+  padding: 14px 20px;
+  background-color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.metric-table-details summary {
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--plant-deep-green);
+  cursor: pointer;
+}
+
+.metric-table-details .log-table-wrapper {
+  margin-top: 14px;
+  box-shadow: none;
+  border: 1px solid var(--gray-100);
+}
+
+.metric-table td { font-variant-numeric: tabular-nums; }

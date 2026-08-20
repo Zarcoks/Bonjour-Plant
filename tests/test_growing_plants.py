@@ -3,7 +3,7 @@ import datetime
 from django.urls import reverse
 from django.utils import timezone
 
-from plant_management.models import AppLog, GrowingPlant
+from plant_management.models import WELL_LIT_INTENSITY, AppLog, GrowingPlant
 
 
 def test_main_page_lists_the_growing_plants(client, growing_plant):
@@ -264,12 +264,31 @@ def test_a_plant_within_its_range_only_shows_the_sun(client, growing_plant):
         assert sign not in content
 
 
-def test_a_plant_lacking_light_shows_the_shade(client, growing_plant):
-    growing_plant.current_luminosity = growing_plant.plant_type.luminosity_per_day - 1
+def test_a_plant_in_the_shade_shows_the_cloud(client, growing_plant):
+    # The measure is an intensity: below the share of light, the plant is in the shade.
+    growing_plant.current_luminosity = WELL_LIT_INTENSITY - 1
     growing_plant.save()
     content = client.get(reverse("growing_plants")).content.decode()
     assert "plant-sign-shade" in content
     assert "plant-sign-sun" not in content
+
+
+def test_a_plant_in_full_light_shows_the_sun(client, growing_plant):
+    growing_plant.current_luminosity = WELL_LIT_INTENSITY
+    growing_plant.save()
+    content = client.get(reverse("growing_plants")).content.decode()
+    assert "plant-sign-sun" in content
+    assert "plant-sign-shade" not in content
+
+
+def test_the_light_sign_does_not_depend_on_the_hours_the_type_asks_for(client, growing_plant):
+    # Hours a day and intensity are two different things: raising the hours the
+    # species needs must not put a well lit plant in the shade.
+    growing_plant.plant_type.luminosity_per_day = 99
+    growing_plant.plant_type.save()
+    growing_plant.current_luminosity = 80
+    growing_plant.save()
+    assert "plant-sign-sun" in client.get(reverse("growing_plants")).content.decode()
 
 
 def test_a_plant_too_hot_shows_the_thermometer(client, growing_plant):
