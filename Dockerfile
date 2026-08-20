@@ -33,10 +33,14 @@ WORKDIR /app
 # Copy application
 COPY --chown=appuser:appuser . .
 
+# WORKDIR created /app as root, and COPY --chown only owns the files it copied:
+# the directory itself is handed over too, otherwise nothing may be created in
+# it — Celery beat keeps its schedule file there.
+#
 # The uploads and the collected static files live in volumes: created here so
 # that the volumes inherit the ownership of the user running the application.
 RUN mkdir -p /app/media /app/staticfiles \
-    && chown appuser:appuser /app/media /app/staticfiles \
+    && chown appuser:appuser /app /app/media /app/staticfiles \
     && chmod +x entrypoint.sh
 
 # Switch to non-root user
