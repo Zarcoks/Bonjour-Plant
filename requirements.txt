@@ -7,9 +7,10 @@ sqlparse==0.5.3
 gunicorn==23.0.0
 whitenoise==6.11.0
 
-# Celery and message broker
+# Celery, cache and message broker
 celery==5.5.3
 redis==7.0.1
+django-redis==6.0.0
 
 # MQTT
 paho-mqtt==2.1.0

@@ -142,6 +142,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", 'redis://localhost:6379/0')
 
+# Cache
+# https://docs.djangoproject.com/en/4.2/topics/cache/
+# The MQTT worker publishes what it listens to here, and the log page reads it.
+# A Redis that cannot be reached degrades to no cache at all rather than to an
+# error: the pages must not depend on it to be served.
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get("REDIS_URL", 'redis://localhost:6379/0'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,
+        },
+    }
+}
+
+DJANGO_REDIS_IGNORE_EXCEPTIONS = True
+
 # MQTT
 # The worker (see the mqtt_worker package) listens to the sensors on this broker,
 # and reads the topics to subscribe to from the sensor table every few seconds.

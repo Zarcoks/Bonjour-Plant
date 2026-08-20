@@ -1,0 +1,31 @@
+{% comment %}What the MQTT worker listens to, as it last said.{% endcomment %}
+{% if subscriptions %}
+  <div class="topics-head">
+    <span class="topics-state is-listening">
+      <span class="topics-pulse"></span>
+      À l'écoute
+    </span>
+    <span class="topics-broker">{{ subscriptions.broker }}</span>
+    <span class="topics-count">
+      {{ subscriptions.topics|length }} topic{{ subscriptions.topics|length|pluralize }}
+    </span>
+    <span class="topics-age">à {{ subscriptions.at|time:"H:i:s" }}</span>
+  </div>
+  {% if subscriptions.topics %}
+    <ul class="topics-list">
+      {% for topic in subscriptions.topics %}
+        <li><code>{{ topic }}</code></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="topics-empty">Aucun topic à écouter : aucun capteur n'en déclare.</p>
+  {% endif %}
+{% else %}
+  <div class="topics-head">
+    <span class="topics-state">
+      <span class="topics-pulse"></span>
+      Le worker n'écoute pas
+    </span>
+    <span class="topics-age">rien dans le cache</span>
+  </div>
+{% endif %}

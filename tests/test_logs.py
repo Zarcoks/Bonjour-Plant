@@ -1,6 +1,7 @@
 from django.urls import reverse
 
 from core.app import app
+from mqtt_worker import state
 from plant_management.models import AppLog
 from plant_management.pages.logs.views import LOGS_SHOWN
 
@@ -87,3 +88,44 @@ def test_the_limit_applies_to_a_filtered_table_too(client, db):
     content = client.get(reverse("logs"), {'search': "bruit"}).content.decode()
     assert content.count("<tr>") == LOGS_SHOWN + 1
     assert "une information isolée" not in content
+
+
+# --- What the MQTT worker listens to ---
+
+def test_the_log_page_shows_the_subscribed_topics(client, db):
+    state.publish("broker:1883", {"bonjour-plant/balcon/humidity", "bonjour-plant/serre/temperature"})
+    content = client.get(reverse("logs")).content.decode()
+    assert "À l'écoute" in content
+    assert "broker:1883" in content
+    assert "bonjour-plant/balcon/humidity" in content
+    assert "bonjour-plant/serre/temperature" in content
+    assert "2 topics" in content
+
+
+def test_the_log_page_says_when_nobody_listens(client, db):
+    content = client.get(reverse("logs")).content.decode()
+    assert "Le worker n'écoute pas" in content
+    assert "À l'écoute" not in content
+
+
+def test_the_topics_are_served_on_their_own(client, db):
+    state.publish("broker:1883", {"bonjour-plant/balcon/humidity"})
+    response = client.get(reverse("mqtt_topics"))
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "bonjour-plant/balcon/humidity" in content
+    # A fragment, asked again every few seconds by the page.
+    assert "<html" not in content
+
+
+def test_a_listening_worker_without_any_topic_says_so(client, db):
+    state.publish("broker:1883", set())
+    content = client.get(reverse("mqtt_topics")).content.decode()
+    assert "À l'écoute" in content
+    assert "Aucun topic à écouter" in content
+
+
+def test_the_topics_are_shown_in_order(client, db):
+    state.publish("broker:1883", {"zigbee/serre", "bonjour-plant/balcon", "mesures/jardin"})
+    content = client.get(reverse("mqtt_topics")).content.decode()
+    assert content.index("bonjour-plant/balcon") < content.index("mesures/jardin") < content.index("zigbee/serre")

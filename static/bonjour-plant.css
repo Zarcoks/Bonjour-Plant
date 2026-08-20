@@ -1105,3 +1105,75 @@ body {
   font-size: 1.1rem;
   line-height: 1.2;
 }
+
+/* ── What the MQTT worker listens to ─────────────────────── */
+.topics-card {
+  display: block;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.topics-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: .8rem;
+  color: var(--gray-400);
+}
+
+.topics-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+
+.topics-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--gray-300);
+}
+
+.topics-state.is-listening { color: var(--plant-green); }
+
+.topics-state.is-listening .topics-pulse {
+  background-color: var(--plant-green);
+  box-shadow: 0 0 0 3px rgba(47, 158, 98, .18);
+}
+
+.topics-broker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--plant-deep-green);
+}
+
+.topics-count { margin-left: auto; font-weight: 500; }
+
+.topics-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topics-list code {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--plant-light-green);
+  color: var(--plant-deep-green);
+  font-size: .78rem;
+}
+
+.topics-empty {
+  margin: 12px 0 0;
+  font-size: .85rem;
+  color: var(--gray-400);
+}

@@ -44,7 +44,7 @@ Trois services :
 | `caddy` | publie le port 80, sert `/static/` et `/media/`, proxifie le reste vers gunicorn |
 | `django-web` | l'application derrière gunicorn, sur le port 8000 interne |
 | `celery` | les deux workers : l'écoute MQTT et la synchronisation périodique |
-| `redis` | le courtier de messages de Celery |
+| `redis` | le courtier de messages de Celery, et le cache de l'application |
 | `mqtt` | un broker Mosquitto de développement, sur le port 1883 |
 | `db` | PostgreSQL 17 |
 
@@ -137,6 +137,7 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/sensors/<id>/card/` | `sensor_card` | carte repliée (sert aussi de « Annuler ») |
 | `/sensors/<id>/delete/` | `delete_sensor` | POST : suppression, après confirmation |
 | `/logs/` | `logs` | le journal de l'application, filtrable |
+| `/logs/topics/` | `mqtt_topics` | les topics MQTT écoutés en ce moment |
 
 Les endpoints de `plant-types` renvoient des fragments HTML destinés à HTMX :
 la page n'est jamais rechargée. La création répond avec la nouvelle carte, plus
@@ -243,6 +244,22 @@ journalisés dans la base comme le reste de l'application. Les lignes de trafic
 par mesure sont, elles, laissées en commentaire dans `handle_message` : une ligne
 d'`app_log` par mesure noierait tout le reste du journal. Il suffit de les
 décommenter pour suivre le détail.
+
+### Ce qui est écouté, en direct
+
+Le worker vit dans un autre processus que le site : il dépose ses abonnements
+dans le cache Redis à chaque synchronisation (`mqtt_worker/state.py`), et la page
+Journal les lit de là. Le panneau du haut se redemande tout seul toutes les
+10 secondes, en HTMX, et affiche le broker, les topics et l'heure de la dernière
+publication.
+
+L'entrée ne vit que trois synchronisations : un worker qui s'arrête de parler
+cesse d'être annoncé comme à l'écoute, et la page passe à « Le worker n'écoute
+pas ». Le worker efface aussi l'entrée quand il se déconnecte ou s'arrête.
+
+Un Redis injoignable ne casse rien : le cache est configuré en
+`IGNORE_EXCEPTIONS`, les pages restent servies, et le panneau dit simplement
+qu'il n'a rien à annoncer.
 
 Pour écouter sans passer par Celery, en local :
 

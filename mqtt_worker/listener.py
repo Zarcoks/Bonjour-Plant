@@ -12,6 +12,7 @@ from paho.mqtt.enums import CallbackAPIVersion
 from core.app import app
 from plant_management.models import Sensor, SensorData
 
+from . import state
 from .broker import broker_from_url
 
 logger = app.module_logger("mqtt")
@@ -97,6 +98,8 @@ class SensorListener:
             client.unsubscribe(topic)
             logger.info("Désabonnement du topic " + topic)
         self.subscribed = wanted
+        # Told to the rest of the application, which has no other way to know.
+        state.publish(self.broker, self.subscribed)
         return self.subscribed
 
     # ── The connection ────────────────────────────────────────
@@ -124,6 +127,7 @@ class SensorListener:
     def on_disconnect(self, client, userdata, flags, reason_code, properties=None):
         logger.warning("Déconnecté du broker MQTT " + str(self.broker) + " : " + str(reason_code))
         self.subscribed = set()
+        state.forget()
 
     def on_message(self, client, userdata, message, properties=None):
         try:
@@ -148,4 +152,5 @@ class SensorListener:
             self.running = False
             client.loop_stop()
             client.disconnect()
+            state.forget()
             logger.info("Le worker MQTT s'est arrêté")

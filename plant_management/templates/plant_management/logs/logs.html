@@ -9,6 +9,18 @@
     </div>
   </div>
 
+  {% comment %}
+    What the worker listens to, asked again on its own every few seconds: the
+    page has no other way to know, the worker living in another process.
+  {% endcomment %}
+  <section id="mqtt-topics" class="topics-card"
+           hx-get="{% url 'mqtt_topics' %}"
+           hx-trigger="every 10s"
+           hx-target="#mqtt-topics"
+           hx-swap="innerHTML">
+    {% include "plant_management/logs/partials/mqtt_topics.html" %}
+  </section>
+
   {# Every change of a filter refreshes the table alone, and updates the address bar. #}
   <form class="log-filters"
         hx-get="{% url 'logs' %}"

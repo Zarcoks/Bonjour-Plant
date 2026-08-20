@@ -1,7 +1,8 @@
 """The MQTT worker: what it subscribes to, and what it does with what arrives."""
 import pytest
+from django.conf import settings
 
-from mqtt_worker import SensorListener, broker_from_url
+from mqtt_worker import SensorListener, broker_from_url, state
 from mqtt_worker.listener import MAX_PAYLOAD_LENGTH, client_id
 from plant_management.models import Sensor, SensorData
 
@@ -200,3 +201,44 @@ def test_a_reconnection_takes_every_subscription_again(listener, sensor):
     listener.subscribed = set()
     listener.sync_subscriptions(client)
     assert client.subscribed == ["bonjour-plant/balcon/humidity"] * 2
+
+
+# --- What the worker tells about itself ---
+
+def test_nothing_is_published_before_the_worker_talks():
+    assert state.read() is None
+
+
+def test_a_synchronisation_publishes_its_subscriptions(listener, sensor, growing_plant):
+    listener.sync_subscriptions(FakeClient())
+    published = state.read()
+    assert published['topics'] == ["bonjour-plant/balcon/humidity"]
+    assert published['broker'] == "broker:1883"
+    assert published['at'] is not None
+
+
+def test_what_is_published_follows_the_database(listener, sensor, growing_plant):
+    client = FakeClient()
+    listener.sync_subscriptions(client)
+    Sensor.objects.create(name="Nouvelle sonde", model="Test", mqtt_topic="bonjour-plant/serre/temperature",
+                          plant=growing_plant)
+    listener.sync_subscriptions(client)
+    assert state.read()['topics'] == ["bonjour-plant/balcon/humidity", "bonjour-plant/serre/temperature"]
+
+    sensor.is_deleted = True
+    sensor.save()
+    listener.sync_subscriptions(client)
+    assert state.read()['topics'] == ["bonjour-plant/serre/temperature"]
+
+
+def test_the_entry_does_not_outlive_a_silent_worker(listener):
+    # Kept for a few synchronisations only: a worker that stopped talking stops
+    # being reported as listening.
+    assert state.freshness_seconds() > listener.sync_seconds
+    assert state.freshness_seconds() == settings.MQTT_SYNC_SECONDS * 3
+
+
+def test_a_worker_leaving_says_so(listener, sensor, growing_plant):
+    listener.sync_subscriptions(FakeClient())
+    state.forget()
+    assert state.read() is None

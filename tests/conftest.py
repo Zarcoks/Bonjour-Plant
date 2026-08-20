@@ -7,6 +7,16 @@ from PIL import Image
 from plant_management.models import GrowingPlant, PlantType, Sensor
 
 
+@pytest.fixture(autouse=True)
+def local_cache(settings):
+    """Tests run on a cache of their own: no Redis to reach, nothing shared."""
+    settings.CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+    from django.core.cache import cache
+    cache.clear()
+    yield cache
+    cache.clear()
+
+
 @pytest.fixture
 def png_bytes():
     """A real (tiny) PNG, so that the ImageField validation passes."""
