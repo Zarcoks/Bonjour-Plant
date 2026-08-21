@@ -84,7 +84,7 @@ def test_switching_it_on_notes_the_moment(client, actionner, actionner_payload):
     actionner.refresh_from_db()
     assert actionner.is_on
     assert actionner.last_switch.date() == timezone.now().date()
-    assert AppLog.objects.filter(type="INFO", message__contains="a été allumé").count() == 1
+    assert AppLog.objects.filter(type="INFO", message__contains="veut allumer").count() == 1
 
 
 def test_switching_it_off_notes_the_moment_too(client, actionner, actionner_payload):
@@ -96,7 +96,7 @@ def test_switching_it_off_notes_the_moment_too(client, actionner, actionner_payl
     actionner.refresh_from_db()
     assert not actionner.is_on
     assert actionner.last_switch > switched_before
-    assert AppLog.objects.filter(type="INFO", message__contains="a été éteint").count() == 1
+    assert AppLog.objects.filter(type="INFO", message__contains="veut éteindre").count() == 1
 
 
 def test_a_change_that_is_not_a_switch_leaves_the_moment_alone(client, actionner, actionner_payload):

@@ -27,6 +27,9 @@ PLANT_SYNC_SECONDS = int(os.environ.get("PLANT_SYNC_SECONDS", 30))
 # How often we make sure somebody is still listening to the sensors.
 MQTT_WATCH_SECONDS = int(os.environ.get("MQTT_WATCH_SECONDS", 60))
 
+# How often the plugs are told the state they should be in.
+ACTIONNER_SYNC_SECONDS = int(os.environ.get("ACTIONNER_SYNC_SECONDS", 60))
+
 app.conf.beat_schedule = {
     'sync_sensors_to_plants': {
         'task': 'sync_worker.sync_sensors_to_plants',
@@ -35,5 +38,9 @@ app.conf.beat_schedule = {
     'watch_the_mqtt_listening': {
         'task': 'mqtt_worker.watch_the_listening',
         'schedule': MQTT_WATCH_SECONDS,
+    },
+    'switch_the_plugs': {
+        'task': 'mqtt_worker.switch_the_plugs',
+        'schedule': ACTIONNER_SYNC_SECONDS,
     },
 }

@@ -240,8 +240,34 @@ Comme pour les capteurs, la suppression est douce (`is_deleted`), demande
 confirmation, et la réponse renvoie `HX-Trigger: refresh-actionners` sur lequel
 la grille se recharge. Supprimer une plante libère aussi ses actionneurs.
 
-Une chose reste à faire : **rien n'est encore envoyé sur le topic** —
-l'application enregistre l'état voulu, elle ne commande pas encore la prise.
+### Commander les prises
+
+`mqtt_worker/switching.py` fait suivre la réalité : toutes les
+`ACTIONNER_SYNC_SECONDS` (60 s par défaut), la tâche
+`mqtt_worker.switch_the_plugs` envoie à chaque actionneur l'état que la base dit
+qu'il devrait avoir, sur son `mqtt_topic`. Le format est celui qu'attend une
+prise TS011F derrière zigbee2mqtt :
+
+```
+bonjour-plant/balcon/lampe/set   {"state": "ON"}
+```
+
+L'ordre est renvoyé à chaque passage plutôt qu'aux seuls changements : une prise
+basculée à la main, ou qui a perdu le courant et est revenue éteinte, se remet
+d'elle-même en accord avec l'application en moins d'une minute. Les ordres
+partent par un client MQTT le temps d'une publication, indépendant de celui qui
+écoute les capteurs. Un broker injoignable est signalé dans le journal, sans
+plus : le passage suivant est à une minute.
+
+Le journal garde les deux versants d'une bascule : ce que l'utilisateur a
+demandé (« L'utilisateur veut allumer l'actionneur … », écrit par le formulaire)
+et l'instruction partie sur le broker (« Instruction MQTT envoyée … : ON sur
+… »). L'instruction n'est écrite que lorsqu'elle change : l'ordre part à chaque
+passage, mais une ligne par prise et par minute enterrerait tout le reste du
+journal. Le dernier état envoyé est retenu en cache pour cela.
+
+La base est donc la référence, et la synchronisation va dans ce sens seulement :
+l'application ne lit pas ce que la prise raconte d'elle-même.
 
 ## Le worker MQTT
 

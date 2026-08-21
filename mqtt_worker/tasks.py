@@ -4,7 +4,7 @@ from celery.signals import worker_ready
 
 from core.app import app
 
-from . import state
+from . import state, switching
 from .listener import SensorListener
 
 logger = app.module_logger("mqtt")
@@ -28,6 +28,21 @@ def listen_to_sensors(self):
     except Exception as error:
         logger.error("L'écoute MQTT s'est interrompue : " + str(error))
         raise self.retry(exc=error, countdown=RETRY_SECONDS, max_retries=None)
+
+
+@shared_task(name='mqtt_worker.switch_the_plugs')
+def switch_the_plugs():
+    """
+    Brings the plugs in line with the application, on a schedule.
+
+    A broker that cannot be reached is reported and nothing else: the next pass
+    is a minute away, there is nothing to retry sooner.
+    """
+    try:
+        return switching.send_orders()
+    except Exception as error:
+        logger.error("Les prises n'ont pas pu être commandées : " + str(error))
+        return 0
 
 
 @shared_task(name='mqtt_worker.watch_the_listening')

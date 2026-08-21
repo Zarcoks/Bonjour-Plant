@@ -65,8 +65,8 @@ class ActionnerDetail(View):
         logger.info("L'actionneur " + actionner.name + " a été modifié, assigné à "
                     + (actionner.plant.display_name if actionner.plant else "aucune plante"))
         if actionner.is_on != was_on:
-            logger.info("L'actionneur " + actionner.name + " a été "
-                        + ("allumé" if actionner.is_on else "éteint"))
+            logger.info("L'utilisateur veut " + ("allumer" if actionner.is_on else "éteindre")
+                        + " l'actionneur " + actionner.name)
         return render(request, TEMPLATES + 'partials/actionner_card.html', {'actionner': actionner})
 
 
