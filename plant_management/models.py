@@ -104,6 +104,10 @@ class GrowingPlant(models.Model):
         """A growing plant is pictured by its type, which falls back to the default illustration."""
         return self.plant_type.get_photo_url()
 
+    def has_light_actionner(self):
+        """Whether anything of this plant can be lit at all."""
+        return self.actionners.filter(is_deleted=False, act_on=ACT_ON_LUMINOSITY).exists()
+
     def expected_growing_state(self):
         """
         How far along the plant should be, in percent, from what it was planted

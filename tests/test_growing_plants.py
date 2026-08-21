@@ -3,7 +3,7 @@ import datetime
 from django.urls import reverse
 from django.utils import timezone
 
-from plant_management.models import WELL_LIT_LEVEL, AppLog, GrowingPlant
+from plant_management.models import WELL_LIT_LEVEL, Actionner, AppLog, GrowingPlant
 
 
 def test_main_page_lists_the_growing_plants(client, growing_plant):
@@ -231,6 +231,9 @@ def test_update_without_a_name_sends_the_form_back(client, growing_plant, plant_
 
 
 def test_auto_luminosity_is_toggled(client, growing_plant):
+    # A lamp to command, otherwise the card shows no button to read the state on.
+    Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
+                             mqtt_topic="bonjour-plant/balcon/lampe/set")
     assert growing_plant.auto_luminosity
     url = reverse("growing_plant_auto_luminosity", kwargs={"plant_id": growing_plant.pk})
 
@@ -328,3 +331,65 @@ def test_a_plant_without_measures_shows_no_sign(client, growing_plant):
 def test_the_photo_falls_back_on_the_plant_type(growing_plant):
     assert growing_plant.get_photo_url() == growing_plant.plant_type.get_photo_url()
     assert "plant-type-default.svg" in growing_plant.get_photo_url()
+
+
+# --- The automatic light button ---
+
+def test_the_light_button_is_shown_when_a_lamp_can_be_commanded(client, growing_plant):
+    Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
+                             mqtt_topic="bonjour-plant/balcon/lampe/set")
+    assert b"light-btn" in client.get(reverse("growing_plants")).content
+
+
+def test_the_light_button_is_hidden_without_a_lamp(client, growing_plant):
+    # Nothing to command: the button would have no effect.
+    assert b"light-btn" not in client.get(reverse("growing_plants")).content
+
+
+def test_a_lamp_acting_on_something_else_does_not_bring_the_button(client, growing_plant):
+    Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=growing_plant,
+                             mqtt_topic="bonjour-plant/serre/brumisateur/set")
+    assert b"light-btn" not in client.get(reverse("growing_plants")).content
+
+
+def test_a_deleted_lamp_does_not_bring_the_button(client, growing_plant):
+    Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
+                             mqtt_topic="bonjour-plant/balcon/lampe/set", is_deleted=True)
+    assert b"light-btn" not in client.get(reverse("growing_plants")).content
+
+
+def test_a_lamp_of_another_plant_does_not_bring_the_button(client, growing_plant, harvested_plant):
+    Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=harvested_plant,
+                             mqtt_topic="bonjour-plant/balcon/lampe/set")
+    assert b"light-btn" not in client.get(reverse("growing_plants")).content
+
+
+# --- The last measures, on the card ---
+
+def test_the_card_shows_the_last_measures(client, growing_plant):
+    content = client.get(reverse("growing_plants")).content.decode()
+    assert "Humidité" in content and "72 %" in content
+    assert "Lumière" in content and "forte" in content       # the level named, not its rank
+    assert "Température" in content and "24,0 °C" in content
+
+
+def test_a_measure_nobody_took_reads_as_nothing(client, growing_plant):
+    GrowingPlant.objects.filter(pk=growing_plant.pk).update(
+        current_humidity=None, current_luminosity=None, current_temperature=None)
+    content = client.get(reverse("growing_plants")).content.decode()
+    assert content.count("—") >= 3
+    assert "%" not in content.split('card-readings')[1].split('</ul>')[0]
+
+
+def test_a_harvested_card_keeps_no_measure(client, harvested_plant):
+    harvested_plant.current_humidity = 66
+    harvested_plant.save()
+    content = client.get(reverse("growing_plants"), {'harvested': "1"}).content.decode()
+    assert "card-readings" not in content
+    assert "66 %" not in content
+
+
+def test_the_measures_wear_the_colours_of_the_curves(client, growing_plant):
+    content = client.get(reverse("growing_plants")).content.decode()
+    for reading in ['reading-humidity', 'reading-light', 'reading-temperature']:
+        assert reading in content

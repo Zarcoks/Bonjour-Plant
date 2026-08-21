@@ -1,0 +1,23 @@
+{% comment %}
+The last measures of a plant, as the metrics page shows them, in one line. The
+colours are those of the curves, so a figure here and a curve there read as the
+same measure.
+{% endcomment %}
+<ul class="card-readings">
+  <li class="reading reading-humidity">
+    <span class="reading-name">Humidité</span>
+    <span class="reading-value">
+      {{ plant.current_humidity|default_if_none:"—" }}{% if plant.current_humidity is not None %} %{% endif %}
+    </span>
+  </li>
+  <li class="reading reading-light">
+    <span class="reading-name">Lumière</span>
+    <span class="reading-value">{{ plant.get_luminosity_name|default:"—" }}</span>
+  </li>
+  <li class="reading reading-temperature">
+    <span class="reading-name">Température</span>
+    <span class="reading-value">
+      {{ plant.current_temperature|default_if_none:"—" }}{% if plant.current_temperature is not None %} °C{% endif %}
+    </span>
+  </li>
+</ul>

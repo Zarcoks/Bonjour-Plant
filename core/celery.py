@@ -15,7 +15,7 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Load task modules from all registered Django apps, and from both workers.
 app.autodiscover_tasks()
-app.autodiscover_tasks(['mqtt_worker', 'sync_worker'], related_name='tasks')
+app.autodiscover_tasks(['mqtt_worker', 'sync_worker', 'decision_worker'], related_name='tasks')
 
 app.conf.timezone = 'Europe/Paris'
 
@@ -30,6 +30,9 @@ MQTT_WATCH_SECONDS = int(os.environ.get("MQTT_WATCH_SECONDS", 60))
 # How often the plugs are told the state they should be in.
 ACTIONNER_SYNC_SECONDS = int(os.environ.get("ACTIONNER_SYNC_SECONDS", 60))
 
+# How often the application takes its own decisions.
+DECISION_SECONDS = int(os.environ.get("DECISION_SECONDS", 60))
+
 app.conf.beat_schedule = {
     'sync_sensors_to_plants': {
         'task': 'sync_worker.sync_sensors_to_plants',
@@ -42,5 +45,9 @@ app.conf.beat_schedule = {
     'switch_the_plugs': {
         'task': 'mqtt_worker.switch_the_plugs',
         'schedule': ACTIONNER_SYNC_SECONDS,
+    },
+    'take_the_decisions': {
+        'task': 'decision_worker.take_the_decisions',
+        'schedule': DECISION_SECONDS,
     },
 }

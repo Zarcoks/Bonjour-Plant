@@ -1,6 +1,7 @@
 from django import forms
 
 from plant_management.models import PlantType
+from plant_management.widgets import PhotoInput
 
 
 class PlantTypeForm(forms.ModelForm):
@@ -19,6 +20,7 @@ class PlantTypeForm(forms.ModelForm):
             'light_ends_at',
             'photo',
         ]
+        widgets = {'photo': PhotoInput}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

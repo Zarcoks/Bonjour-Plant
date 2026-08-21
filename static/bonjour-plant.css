@@ -20,6 +20,13 @@
   --gray-500: #71717A;
   --gray-600: #52525B;
 
+  /* The colours of the three measures, shared by the curves of the metrics page
+     and the readings of the plant cards. Validated for colour blindness and for
+     their contrast on white. */
+  --measure-humidity:    #0369A1;
+  --measure-light:       #A16207;
+  --measure-temperature: #BE185D;
+
   --clay:       #C97B5A;
   --clay-light: #FBEDE6;
   --sun:        #F7C948;
@@ -1241,4 +1248,100 @@ body {
 .switch-check .form-check-input:checked {
   background-color: var(--sun);
   border-color: var(--sun);
+}
+
+/* ── The photo field ─────────────────────────────────────── */
+.photo-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photo-input-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 12px 4px 4px;
+  border-radius: var(--radius-pill);
+  background-color: var(--plant-light-green);
+}
+
+.photo-input-current img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.photo-input-name {
+  overflow: hidden;
+  max-width: 150px;
+  font-size: .75rem;
+  color: var(--plant-deep-green);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;          /* the end of the name matters more than its folder */
+  text-align: left;
+}
+
+.photo-input .photo-input-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--gray-50);
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--gray-500);
+  cursor: pointer;
+}
+
+.photo-input .photo-input-clear:has(input:checked) {
+  background-color: var(--clay-light);
+  color: var(--clay);
+}
+
+.photo-input .photo-input-clear input { margin: 0; cursor: pointer; }
+.photo-input input[type="file"] { flex: 1 1 180px; min-width: 0; }
+
+/* ── The last measures, on a plant card ──────────────────── */
+.card-readings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading {
+  padding: 6px 12px 6px 10px;
+  border-left: 3px solid var(--reading-colour);
+  border-radius: var(--radius-sm);
+  background-color: var(--gray-50);
+}
+
+.reading-humidity { --reading-colour: var(--measure-humidity); }
+.reading-light { --reading-colour: var(--measure-light); }
+.reading-temperature { --reading-colour: var(--measure-temperature); }
+
+.reading-name {
+  display: block;
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: var(--gray-400);
+}
+
+.reading-value {
+  display: block;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--plant-deep-green);
 }

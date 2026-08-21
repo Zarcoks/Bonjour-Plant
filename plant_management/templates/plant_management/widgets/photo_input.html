@@ -1,0 +1,16 @@
+<div class="photo-input">
+  {% if widget.is_initial %}
+    <span class="photo-input-current">
+      <img src="{{ widget.value.url }}" alt="">
+      <span class="photo-input-name">{{ widget.value }}</span>
+    </span>
+    {% if not widget.required %}
+      <label class="photo-input-clear" for="{{ widget.checkbox_id }}">
+        <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}">
+        <i class="bi bi-x-lg"></i>
+        Retirer
+      </label>
+    {% endif %}
+  {% endif %}
+  <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+</div>

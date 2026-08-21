@@ -39,6 +39,8 @@ planting date and its growing bar: no measure, no sign, no automatic light.
       {% else %}
         <p class="growing-card-type">{{ plant.plant_type.plant_name }}</p>
 
+        {% include "plant_management/growing_plants/partials/growing_plant_readings.html" %}
+
         <p class="growing-card-watering">
           <i class="bi bi-droplet-half"></i>
           {% if plant.last_watering %}
@@ -48,17 +50,19 @@ planting date and its growing bar: no measure, no sign, no automatic light.
           {% endif %}
         </p>
 
-        {# The click is consumed, so that the button does not open the card too. #}
-        <button class="light-btn{% if plant.auto_luminosity %} is-on{% endif %}" type="button"
-                hx-post="{% url 'growing_plant_auto_luminosity' plant.pk %}"
-                hx-target="#growing-plant-{{ plant.pk }}"
-                hx-swap="outerHTML"
-                hx-trigger="click consume"
-                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-          <i class="bi bi-lightbulb{% if plant.auto_luminosity %}-fill{% endif %}"></i>
-          Lumière automatique
-          <span class="light-state">{% if plant.auto_luminosity %}activée{% else %}désactivée{% endif %}</span>
-        </button>
+        {% if plant.has_light_actionner %}
+          {# The click is consumed, so that the button does not open the card too. #}
+          <button class="light-btn{% if plant.auto_luminosity %} is-on{% endif %}" type="button"
+                  hx-post="{% url 'growing_plant_auto_luminosity' plant.pk %}"
+                  hx-target="#growing-plant-{{ plant.pk }}"
+                  hx-swap="outerHTML"
+                  hx-trigger="click consume"
+                  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            <i class="bi bi-lightbulb{% if plant.auto_luminosity %}-fill{% endif %}"></i>
+            Lumière automatique
+            <span class="light-state">{% if plant.auto_luminosity %}activée{% else %}désactivée{% endif %}</span>
+          </button>
+        {% endif %}
       {% endif %}
 
       <span class="growing-card-hint">Cliquer pour modifier <i class="bi bi-chevron-down"></i></span>

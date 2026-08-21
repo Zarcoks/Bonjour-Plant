@@ -1,8 +1,9 @@
 """The actionners: connected plugs playing on one factor of a plant."""
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.urls import reverse
 import datetime
 
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from django.utils import timezone
 
 from plant_management.models import Actionner, AppLog
@@ -219,3 +220,79 @@ def test_a_deleted_actionner_cannot_be_reached(client, actionner):
     actionner.save()
     for name in ["actionner_detail", "actionner_card"]:
         assert client.get(reverse(name, kwargs={"actionner_id": actionner.pk})).status_code == 404
+
+
+# --- Switching a light off by hand takes the plant over ---
+
+@pytest.fixture
+def lamp_of(growing_plant, db):
+    """A lamp, lit, on a plant whose light is left to the application."""
+    growing_plant.auto_luminosity = True
+    growing_plant.save()
+    return Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
+                                    mqtt_topic="bonjour-plant/balcon/lampe/set", is_on=True)
+
+
+def payload_of(actionner, **changes):
+    """What the form sends back for that actionner, unchanged unless said otherwise."""
+    fields = {
+        'name': actionner.name,
+        'act_on': actionner.act_on,
+        'mqtt_topic': actionner.mqtt_topic,
+        'plant': actionner.plant.pk if actionner.plant else "",
+    }
+    return dict(fields, **changes)
+
+
+def switch(client, actionner, **changes):
+    return client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}),
+                       payload_of(actionner, **changes))
+
+
+def test_switching_a_light_off_stops_the_automatic_light(client, lamp_of, growing_plant):
+    switch(client, lamp_of)          # the box left unticked switches it off
+    growing_plant.refresh_from_db()
+    assert not growing_plant.auto_luminosity
+    assert AppLog.objects.filter(type="INFO",
+                                 message__contains="lumière automatique de la plante").count() == 1
+
+
+def test_switching_a_light_on_leaves_the_automatic_light_alone(client, lamp_of, growing_plant):
+    lamp_of.is_on = False
+    lamp_of.save()
+    switch(client, lamp_of, is_on="on")
+    growing_plant.refresh_from_db()
+    # Only switching off hands the light back: switching on is not asked to.
+    assert growing_plant.auto_luminosity
+
+
+def test_switching_off_something_that_is_not_a_light_leaves_it_alone(client, growing_plant, db):
+    growing_plant.auto_luminosity = True
+    growing_plant.save()
+    humidifier = Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=growing_plant,
+                                          mqtt_topic="bonjour-plant/serre/brumisateur/set", is_on=True)
+    switch(client, humidifier)
+    growing_plant.refresh_from_db()
+    assert growing_plant.auto_luminosity
+
+
+def test_a_light_of_no_plant_hands_nothing_back(client, actionner):
+    actionner.is_on = True
+    actionner.save()
+    assert actionner.plant is None
+    switch(client, actionner)
+    actionner.refresh_from_db()
+    assert not actionner.is_on
+
+
+def test_a_plant_already_on_manual_light_is_not_written_again(client, lamp_of, growing_plant):
+    growing_plant.auto_luminosity = False
+    growing_plant.save()
+    switch(client, lamp_of)
+    assert not AppLog.objects.filter(message__contains="lumière automatique de la plante").exists()
+
+
+def test_a_change_that_is_not_a_switch_leaves_the_automatic_light_alone(client, lamp_of, growing_plant):
+    switch(client, lamp_of, name="Lampe UV du balcon", is_on="on")
+    growing_plant.refresh_from_db()
+    assert growing_plant.auto_luminosity

@@ -2,6 +2,7 @@ from django import forms
 from django.utils import timezone
 
 from plant_management.models import Actionner, GrowingPlant
+from plant_management.widgets import PhotoInput
 
 
 class ActionnerForm(forms.ModelForm):
@@ -10,6 +11,7 @@ class ActionnerForm(forms.ModelForm):
     class Meta:
         model = Actionner
         fields = ['name', 'act_on', 'mqtt_topic', 'plant', 'is_on', 'photo']
+        widgets = {'photo': PhotoInput}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

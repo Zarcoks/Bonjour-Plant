@@ -10,6 +10,7 @@ simple comme bonjour.
 - `Logging/` : l'objet loggueur de l'application
 - `mqtt_worker/` : le worker qui écoute les capteurs sur le broker MQTT
 - `sync_worker/` : le worker qui recopie les mesures reçues sur les plantes
+- `decision_worker/` : le worker qui prend les décisions automatiques
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
@@ -43,7 +44,7 @@ Trois services :
 | --- | --- |
 | `caddy` | publie le port 80, sert `/static/` et `/media/`, proxifie le reste vers gunicorn |
 | `django-web` | l'application derrière gunicorn, sur le port 8000 interne |
-| `celery` | les deux workers : l'écoute MQTT et la synchronisation périodique |
+| `celery` | les workers : écoute MQTT, synchronisation, décisions automatiques |
 | `redis` | le courtier de messages de Celery, et le cache de l'application |
 | `mqtt` | un broker Mosquitto de développement, sur le port 1883 |
 | `db` | PostgreSQL 17 |
@@ -190,6 +191,11 @@ signe soleil/nuage se lit sur le seul niveau.
 
 Les plantes sont triées par date de plantation, les récoltées à la fin, et les
 supprimées ne sont jamais listées.
+
+Chaque carte porte les dernières mesures de la plante — humidité, niveau de
+lumière, température — dans les couleurs des courbes de la page métriques, pour
+qu'un chiffre ici et une courbe là se lisent comme la même mesure. Une mesure
+absente s'écrit « — ».
 
 Une plante **récoltée** ne garde que son nom, sa photo, sa date de plantation et
 sa barre de croissance, avec la mention « Récoltée » et le jour de récolte
@@ -396,6 +402,30 @@ Rien n'est écrit quand rien n'a bougé, et seuls les champs modifiés sont
 enregistrés — mesures et avancement dans une seule écriture. Un passage qui se déroule bien ne journalise rien ; seuls les
 payloads illisibles produisent un avertissement, groupé par passage. Une clé absente du payload laisse la mesure correspondante
 inchangée ; un payload qui n'est pas un objet JSON est ignoré.
+
+## Les décisions automatiques
+
+`decision_worker/` porte ce que l'application décide d'elle-même. La tâche
+`decision_worker.take_the_decisions` tourne toutes les `DECISION_SECONDS` (60 s
+par défaut).
+
+Première décision, `light_the_plants` : pour chaque plante non supprimée dont
+`auto_luminosity` est activé, si l'heure tombe dans la plage horaire de son type
+de plante, les actionneurs de la plante qui agissent sur la lumière sont allumés ;
+en dehors, ils sont éteints. Une plante dont la lumière automatique est
+désactivée n'est pas touchée du tout — elle est à la main de quelqu'un d'autre.
+
+Éteindre une lampe à la main, depuis les paramètres de l'actionneur, **fait
+passer sa plante en lumière manuelle** (`auto_luminosity` à faux) : sans cela, la
+décision la rallumerait dans la minute et l'interrupteur paraîtrait cassé. Le
+bouton « Lumière automatique » d'une plante n'apparaît d'ailleurs que si quelque
+chose peut l'éclairer.
+
+Une décision **écrit en base et rien d'autre** : c'est le worker MQTT qui, à son
+tour, dit aux prises l'état voulu. La bascule est donc datée tout de suite
+(`last_switch`) et atteint la prise au passage suivant, dans la minute. Chaque
+bascule laisse une ligne dans le journal, et une décision qui ne change rien n'en
+laisse aucune.
 
 ## Tests
 

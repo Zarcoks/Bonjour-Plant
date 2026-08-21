@@ -1,6 +1,7 @@
 from django import forms
 
 from plant_management.models import GrowingPlant, Sensor
+from plant_management.widgets import PhotoInput
 
 # The keys the sensor reads its measures under, in the order the form shows them.
 PAYLOAD_LABEL_FIELDS = [
@@ -16,6 +17,7 @@ class SensorForm(forms.ModelForm):
     class Meta:
         model = Sensor
         fields = ['name', 'model', 'mqtt_topic', 'plant'] + PAYLOAD_LABEL_FIELDS + ['photo']
+        widgets = {'photo': PhotoInput}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
-from plant_management.models import Actionner
+from plant_management.models import ACT_ON_LUMINOSITY, Actionner
 
 from .forms import ActionnerForm
 
@@ -67,7 +67,27 @@ class ActionnerDetail(View):
         if actionner.is_on != was_on:
             logger.info("L'utilisateur veut " + ("allumer" if actionner.is_on else "éteindre")
                         + " l'actionneur " + actionner.name)
+        if was_on and not actionner.is_on:
+            hand_back_the_light(actionner)
         return render(request, TEMPLATES + 'partials/actionner_card.html', {'actionner': actionner})
+
+
+def hand_back_the_light(actionner):
+    """
+    Takes the plant off automatic light when its lamp is switched off by hand.
+
+    Without this, the decision worker would light it again within the minute and
+    the switch would look broken: turning a lamp off by hand is taking the light
+    of that plant over.
+    """
+    plant = actionner.plant
+    if actionner.act_on != ACT_ON_LUMINOSITY or plant is None or not plant.auto_luminosity:
+        return False
+    plant.auto_luminosity = False
+    plant.save(update_fields=['auto_luminosity'])
+    logger.info("La lumière automatique de la plante " + plant.display_name
+                + " a été désactivée : l'utilisateur a éteint " + actionner.name)
+    return True
 
 
 class ActionnerCreate(View):
