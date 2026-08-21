@@ -422,14 +422,25 @@ décision la rallumerait dans la minute et l'interrupteur paraîtrait cassé. Le
 bouton « Lumière automatique » d'une plante n'apparaît d'ailleurs que si quelque
 chose peut l'éclairer.
 
-L'arrosage automatique se règle de la même façon : le bouton « Arrosage
+Seconde décision, `water_the_plants` : pour chaque plante non supprimée dont
+`auto_watering` est activé, l'humidité visée est **le milieu de la fourchette de
+son type de plante**, `(humidity_min + humidity_max) / 2`. En dessous, les
+actionneurs de la plante qui agissent sur l'humidité sont allumés ; à ce niveau
+ou au-dessus, ils sont éteints. Viser le milieu plutôt que le minimum laisse de
+la marge des deux côtés : une plante arrosée jusqu'à sa borne basse serait sèche
+aussitôt. Une plante qui n'a jamais donné son humidité compte comme une plante
+qui n'a pas soif — on ne laisse rien tourner sur une mesure qu'on n'a pas.
+
+L'arrosage automatique se règle comme la lumière : le bouton « Arrosage
 automatique » de la carte bascule `auto_watering`, et n'apparaît que si la plante
 a un actionneur qui agit sur l'humidité. Basculer l'interrupteur d'une pompe à la
 main, depuis les paramètres de l'actionneur — pour l'allumer comme pour
 l'éteindre — **fait passer sa plante en arrosage manuel** (`auto_watering` à
 faux) : toucher l'interrupteur, c'est reprendre l'eau de cette plante en main.
-Aucune décision ne lit encore `auto_watering` : le drapeau est posé, l'arrosage
-automatique lui-même reste à écrire.
+
+Les deux décisions basculent les prises par le même `decision_worker.plugs.switch`,
+qui n'écrit que si l'état voulu a changé et signe sa ligne du nom de la décision
+qui l'a demandé.
 
 Une décision **écrit en base et rien d'autre** : c'est le worker MQTT qui, à son
 tour, dit aux prises l'état voulu. La bascule est donc datée tout de suite

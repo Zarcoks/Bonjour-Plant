@@ -1,10 +1,12 @@
 """Deciding when the plants are to be given light."""
 from django.utils import timezone
 
-from core.app import app
 from plant_management.models import ACT_ON_LUMINOSITY, GrowingPlant
 
-logger = app.module_logger("decisions")
+from .plugs import switch
+
+# How the switches of this decision read in the journal.
+DECISION = "Lumière automatique"
 
 
 def is_within(window_starts_at, window_ends_at, moment):
@@ -15,19 +17,6 @@ def is_within(window_starts_at, window_ends_at, moment):
 def light_actionners_of(plant):
     """The plugs of that plant with something on them that makes light."""
     return plant.actionners.filter(is_deleted=False, act_on=ACT_ON_LUMINOSITY)
-
-
-def switch(actionner, on):
-    """Sets the state wanted of a plug, and answers whether that changed anything."""
-    if actionner.is_on == on:
-        return False
-    actionner.is_on = on
-    actionner.last_switch = timezone.now()
-    actionner.save(update_fields=['is_on', 'last_switch'])
-    logger.info("Lumière automatique : l'actionneur " + actionner.name + " est "
-                + ("allumé" if on else "éteint") + " pour la plante "
-                + (actionner.plant.display_name if actionner.plant else "sans plante"))
-    return True
 
 
 def light_the_plants(at=None):
@@ -47,6 +36,6 @@ def light_the_plants(at=None):
     for plant in plants:
         wanted = is_within(plant.plant_type.light_starts_at, plant.plant_type.light_ends_at, moment)
         for actionner in light_actionners_of(plant):
-            if switch(actionner, wanted):
+            if switch(actionner, wanted, DECISION):
                 summary['switched_on' if wanted else 'switched_off'] += 1
     return summary
