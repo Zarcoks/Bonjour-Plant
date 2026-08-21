@@ -141,3 +141,15 @@ class GrowingPlantAutoLuminosity(View):
         logger.info("La lumière automatique de la plante " + plant.display_name + " a été "
                     + ("activée" if plant.auto_luminosity else "désactivée"))
         return card(request, plant)
+
+
+class GrowingPlantAutoWatering(View):
+    """Turns the automatic watering of a plant on and off."""
+
+    def post(self, request, plant_id):
+        plant = get_object_or_404(GrowingPlant, pk=plant_id, is_deleted=False)
+        plant.auto_watering = not plant.auto_watering
+        plant.save()
+        logger.info("L'arrosage automatique de la plante " + plant.display_name + " a été "
+                    + ("activé" if plant.auto_watering else "désactivé"))
+        return card(request, plant)

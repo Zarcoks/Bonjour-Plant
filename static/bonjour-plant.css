@@ -718,8 +718,9 @@ body {
   transition: color .18s ease;
 }
 
-/* ── Automatic light button ───────────────────────────────── */
-.light-btn {
+/* ── Automatic light and watering buttons ─────────────────── */
+.light-btn,
+.water-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -736,7 +737,8 @@ body {
   transition: background-color .18s ease, border-color .18s ease, color .18s ease;
 }
 
-.light-btn:hover { border-color: var(--plant-leaf); }
+.light-btn:hover,
+.water-btn:hover { border-color: var(--plant-leaf); }
 
 .light-btn.is-on {
   background-color: var(--sun-light);
@@ -744,7 +746,17 @@ body {
   color: #97710A;
 }
 
-.light-state {
+/* The two automatic buttons of a card sit side by side, and wrap together. */
+.light-btn + .water-btn { margin-left: 8px; }
+
+.water-btn.is-on {
+  background-color: #E0F2FE;
+  border-color: #7DD3FC;
+  color: var(--measure-humidity);
+}
+
+.light-state,
+.water-state {
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   background-color: rgba(255,255,255,.75);

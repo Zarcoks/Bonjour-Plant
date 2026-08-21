@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
-from plant_management.models import ACT_ON_LUMINOSITY, Actionner
+from plant_management.models import ACT_ON_HUMIDITY, ACT_ON_LUMINOSITY, Actionner
 
 from .forms import ActionnerForm
 
@@ -67,6 +67,7 @@ class ActionnerDetail(View):
         if actionner.is_on != was_on:
             logger.info("L'utilisateur veut " + ("allumer" if actionner.is_on else "éteindre")
                         + " l'actionneur " + actionner.name)
+            hand_back_the_watering(actionner)
         if was_on and not actionner.is_on:
             hand_back_the_light(actionner)
         return render(request, TEMPLATES + 'partials/actionner_card.html', {'actionner': actionner})
@@ -87,6 +88,23 @@ def hand_back_the_light(actionner):
     plant.save(update_fields=['auto_luminosity'])
     logger.info("La lumière automatique de la plante " + plant.display_name
                 + " a été désactivée : l'utilisateur a éteint " + actionner.name)
+    return True
+
+
+def hand_back_the_watering(actionner):
+    """
+    Takes the plant off automatic watering when its pump is switched by hand.
+
+    Touching the switch of a pump, either way, is taking the water of that plant
+    over: the application stops watering it on its own until it is told to again.
+    """
+    plant = actionner.plant
+    if actionner.act_on != ACT_ON_HUMIDITY or plant is None or not plant.auto_watering:
+        return False
+    plant.auto_watering = False
+    plant.save(update_fields=['auto_watering'])
+    logger.info("L'arrosage automatique de la plante " + plant.display_name
+                + " a été désactivé : l'utilisateur a basculé " + actionner.name)
     return True
 
 

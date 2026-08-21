@@ -10,4 +10,6 @@ urlpatterns = [
     path("plants/<int:plant_id>/delete/", views.GrowingPlantDelete.as_view(), name="delete_growing_plant"),
     path("plants/<int:plant_id>/auto-luminosity/", views.GrowingPlantAutoLuminosity.as_view(),
          name="growing_plant_auto_luminosity"),
+    path("plants/<int:plant_id>/auto-watering/", views.GrowingPlantAutoWatering.as_view(),
+         name="growing_plant_auto_watering"),
 ]

@@ -296,3 +296,62 @@ def test_a_change_that_is_not_a_switch_leaves_the_automatic_light_alone(client, 
     switch(client, lamp_of, name="Lampe UV du balcon", is_on="on")
     growing_plant.refresh_from_db()
     assert growing_plant.auto_luminosity
+
+
+# --- Switching a pump by hand takes the plant over ---
+
+@pytest.fixture
+def pump_of(growing_plant, db):
+    """A pump, running, on a plant whose watering is left to the application."""
+    growing_plant.auto_watering = True
+    growing_plant.save()
+    return Actionner.objects.create(name="Pompe", act_on="humidity", plant=growing_plant,
+                                    mqtt_topic="bonjour-plant/balcon/pompe/set", is_on=True)
+
+
+def test_switching_a_pump_off_stops_the_automatic_watering(client, pump_of, growing_plant):
+    switch(client, pump_of)          # the box left unticked switches it off
+    growing_plant.refresh_from_db()
+    assert not growing_plant.auto_watering
+    assert AppLog.objects.filter(type="INFO",
+                                 message__contains="arrosage automatique de la plante").count() == 1
+
+
+def test_switching_a_pump_on_stops_the_automatic_watering_too(client, pump_of, growing_plant):
+    pump_of.is_on = False
+    pump_of.save()
+    switch(client, pump_of, is_on="on")
+    growing_plant.refresh_from_db()
+    # Touching the switch either way is taking the water of the plant over.
+    assert not growing_plant.auto_watering
+
+
+def test_switching_something_that_is_not_a_pump_leaves_the_watering_alone(client, lamp_of, growing_plant):
+    growing_plant.auto_watering = True
+    growing_plant.save()
+    switch(client, lamp_of)
+    growing_plant.refresh_from_db()
+    assert growing_plant.auto_watering
+
+
+def test_a_pump_of_no_plant_hands_nothing_back(client, actionner):
+    actionner.act_on = "humidity"
+    actionner.is_on = True
+    actionner.save()
+    assert actionner.plant is None
+    switch(client, actionner)
+    actionner.refresh_from_db()
+    assert not actionner.is_on
+
+
+def test_a_plant_already_watered_by_hand_is_not_written_again(client, pump_of, growing_plant):
+    growing_plant.auto_watering = False
+    growing_plant.save()
+    switch(client, pump_of)
+    assert not AppLog.objects.filter(message__contains="arrosage automatique de la plante").exists()
+
+
+def test_a_change_that_is_not_a_switch_leaves_the_automatic_watering_alone(client, pump_of, growing_plant):
+    switch(client, pump_of, name="Pompe du balcon", is_on="on")
+    growing_plant.refresh_from_db()
+    assert growing_plant.auto_watering

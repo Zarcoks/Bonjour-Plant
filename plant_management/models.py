@@ -87,6 +87,7 @@ class GrowingPlant(models.Model):
     harvest_day = models.DateTimeField("récoltée le", null=True, blank=True)
     last_watering = models.DateTimeField("dernier arrosage", null=True, blank=True)
     auto_luminosity = models.BooleanField("lumière automatique", default=False)
+    auto_watering = models.BooleanField("arrosage automatique", default=False)
 
     growing_state = models.IntegerField("avancement (%)", default=0)
     current_temperature = models.FloatField("température actuelle", null=True, blank=True)
@@ -107,6 +108,10 @@ class GrowingPlant(models.Model):
     def has_light_actionner(self):
         """Whether anything of this plant can be lit at all."""
         return self.actionners.filter(is_deleted=False, act_on=ACT_ON_LUMINOSITY).exists()
+
+    def has_humidity_actionner(self):
+        """Whether anything of this plant can water it at all."""
+        return self.actionners.filter(is_deleted=False, act_on=ACT_ON_HUMIDITY).exists()
 
     def expected_growing_state(self):
         """

@@ -249,13 +249,40 @@ def test_auto_luminosity_is_toggled(client, growing_plant):
     assert AppLog.objects.filter(message__contains="lumière automatique").count() == 2
 
 
+def test_the_watering_button_only_shows_with_something_to_water_with(client, growing_plant):
+    # A plant with no pump has nothing to water it: the card offers no button.
+    assert "Arrosage automatique" not in client.get(reverse("growing_plants")).content.decode()
+    Actionner.objects.create(name="Pompe", act_on="humidity", plant=growing_plant,
+                             mqtt_topic="bonjour-plant/balcon/pompe/set")
+    assert "Arrosage automatique" in client.get(reverse("growing_plants")).content.decode()
+
+
+def test_auto_watering_is_toggled(client, growing_plant):
+    # A pump to command, otherwise the card shows no button to read the state on.
+    Actionner.objects.create(name="Pompe", act_on="humidity", plant=growing_plant,
+                             mqtt_topic="bonjour-plant/balcon/pompe/set")
+    assert not growing_plant.auto_watering
+    url = reverse("growing_plant_auto_watering", kwargs={"plant_id": growing_plant.pk})
+
+    response = client.post(url)
+    assert response.status_code == 200
+    growing_plant.refresh_from_db()
+    assert growing_plant.auto_watering
+    assert "activé".encode() in response.content
+
+    client.post(url)
+    growing_plant.refresh_from_db()
+    assert not growing_plant.auto_watering
+    assert AppLog.objects.filter(message__contains="arrosage automatique").count() == 2
+
+
 def test_a_deleted_plant_cannot_be_reached(client, growing_plant):
     growing_plant.is_deleted = True
     growing_plant.save()
     for name in ["growing_plant_detail", "growing_plant_card"]:
         assert client.get(reverse(name, kwargs={"plant_id": growing_plant.pk})).status_code == 404
-    assert client.post(reverse("growing_plant_auto_luminosity",
-                               kwargs={"plant_id": growing_plant.pk})).status_code == 404
+    for name in ["growing_plant_auto_luminosity", "growing_plant_auto_watering"]:
+        assert client.post(reverse(name, kwargs={"plant_id": growing_plant.pk})).status_code == 404
 
 
 # --- The signs read from the last measures ---

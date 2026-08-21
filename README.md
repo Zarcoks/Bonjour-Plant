@@ -127,6 +127,7 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/plants/<id>/card/` | `growing_plant_card` | carte en lecture (sert aussi de « Annuler ») |
 | `/plants/<id>/delete/` | `delete_growing_plant` | POST : suppression, après confirmation |
 | `/plants/<id>/auto-luminosity/` | `growing_plant_auto_luminosity` | POST : bascule la lumière automatique |
+| `/plants/<id>/auto-watering/` | `growing_plant_auto_watering` | POST : bascule l'arrosage automatique |
 | `/plant-types/` | `plant_types` | la grille des types de plantes |
 | `/plant-types/create/` | `create_plant_type` | GET : formulaire de création, POST : création |
 | `/plant-types/<id>/` | `plant_type_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
@@ -420,6 +421,15 @@ passer sa plante en lumière manuelle** (`auto_luminosity` à faux) : sans cela,
 décision la rallumerait dans la minute et l'interrupteur paraîtrait cassé. Le
 bouton « Lumière automatique » d'une plante n'apparaît d'ailleurs que si quelque
 chose peut l'éclairer.
+
+L'arrosage automatique se règle de la même façon : le bouton « Arrosage
+automatique » de la carte bascule `auto_watering`, et n'apparaît que si la plante
+a un actionneur qui agit sur l'humidité. Basculer l'interrupteur d'une pompe à la
+main, depuis les paramètres de l'actionneur — pour l'allumer comme pour
+l'éteindre — **fait passer sa plante en arrosage manuel** (`auto_watering` à
+faux) : toucher l'interrupteur, c'est reprendre l'eau de cette plante en main.
+Aucune décision ne lit encore `auto_watering` : le drapeau est posé, l'arrosage
+automatique lui-même reste à écrire.
 
 Une décision **écrit en base et rien d'autre** : c'est le worker MQTT qui, à son
 tour, dit aux prises l'état voulu. La bascule est donc datée tout de suite

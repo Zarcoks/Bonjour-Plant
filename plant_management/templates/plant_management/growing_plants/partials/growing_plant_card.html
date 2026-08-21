@@ -1,6 +1,7 @@
 {% comment %}
 A growing plant as it is read. A harvested plant keeps its name, its photo, its
-planting date and its growing bar: no measure, no sign, no automatic light.
+planting date and its growing bar: no measure, no sign, no automatic light or
+watering.
 {% endcomment %}
 <article class="growing-card{% if plant.harvested %} is-harvested{% endif %}" id="growing-plant-{{ plant.pk }}"
          role="button" tabindex="0"
@@ -61,6 +62,20 @@ planting date and its growing bar: no measure, no sign, no automatic light.
             <i class="bi bi-lightbulb{% if plant.auto_luminosity %}-fill{% endif %}"></i>
             Lumière automatique
             <span class="light-state">{% if plant.auto_luminosity %}activée{% else %}désactivée{% endif %}</span>
+          </button>
+        {% endif %}
+
+        {% if plant.has_humidity_actionner %}
+          {# Same button, for the water: it only shows when something can water the plant. #}
+          <button class="water-btn{% if plant.auto_watering %} is-on{% endif %}" type="button"
+                  hx-post="{% url 'growing_plant_auto_watering' plant.pk %}"
+                  hx-target="#growing-plant-{{ plant.pk }}"
+                  hx-swap="outerHTML"
+                  hx-trigger="click consume"
+                  hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            <i class="bi bi-droplet{% if plant.auto_watering %}-fill{% endif %}"></i>
+            Arrosage automatique
+            <span class="water-state">{% if plant.auto_watering %}activé{% else %}désactivé{% endif %}</span>
           </button>
         {% endif %}
       {% endif %}
