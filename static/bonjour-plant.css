@@ -1177,3 +1177,68 @@ body {
   font-size: .85rem;
   color: var(--gray-400);
 }
+
+/* ── Actionners ───────────────────────────────────────────── */
+.switch-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  background-color: rgba(255, 255, 255, .92);
+  box-shadow: var(--shadow-sm);
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+
+.switch-badge.is-on { color: #97710A; }
+.switch-badge.is-on i { color: var(--sun); }
+
+.switch-when {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: .8rem;
+  color: var(--gray-400);
+}
+
+.switch-when i { color: var(--gray-300); }
+
+.switch-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  background-color: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--plant-deep-green);
+  cursor: pointer;
+}
+
+/* Switched on: the control takes the colours of a plug that is live. */
+.switch-check:has(.form-check-input:checked) {
+  background-color: var(--sun-light);
+  border-color: var(--sun);
+  color: #97710A;
+}
+
+.switch-check .form-check-input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.switch-check .form-check-input:checked {
+  background-color: var(--sun);
+  border-color: var(--sun);
+}

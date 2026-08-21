@@ -7,6 +7,18 @@ from django.utils import timezone
 # The photos shown for a plant type or a sensor that has no picture of its own yet.
 DEFAULT_PLANT_TYPE_PHOTO = 'plant-type-default.svg'
 DEFAULT_SENSOR_PHOTO = 'sensor-default.svg'
+DEFAULT_ACTIONNER_PHOTO = 'actionner-default.svg'
+
+# What an actionner plays on, under the names the payloads use for the measures.
+ACT_ON_HUMIDITY = 'humidity'
+ACT_ON_LUMINOSITY = 'luminosity'
+ACT_ON_TEMPERATURE = 'temperature'
+
+ACT_ON_CHOICES = [
+    (ACT_ON_HUMIDITY, "humidité"),
+    (ACT_ON_LUMINOSITY, "lumière"),
+    (ACT_ON_TEMPERATURE, "température"),
+]
 
 # The keys a measure usually carries in a payload, for a sensor that names them
 # the plain way. A sensor naming them otherwise says so on its own fields.
@@ -187,6 +199,35 @@ class Sensor(models.Model):
 
     def get_temperature_label(self):
         return self.temperature_payload_label or DEFAULT_TEMPERATURE_LABEL
+
+
+class Actionner(models.Model):
+    """
+    A connected plug, with something on it that plays on one factor of a plant.
+
+    A UV lamp acts on the light, a humidifier on the humidity: `act_on` says
+    which, and `mqtt_topic` is where an order to switch it is to be sent.
+    """
+    name = models.CharField("nom", max_length=120)
+    is_on = models.BooleanField("allumé", default=False)
+    is_deleted = models.BooleanField(default=False)
+    plant = models.ForeignKey(GrowingPlant, verbose_name="assigné à", on_delete=models.SET_NULL,
+                              null=True, blank=True, related_name='actionners')
+    last_switch = models.DateTimeField("dernier changement", null=True, blank=True)
+    mqtt_topic = models.CharField("topic MQTT", max_length=200)
+    act_on = models.CharField("agit sur", max_length=60, choices=ACT_ON_CHOICES, default=ACT_ON_HUMIDITY)
+    photo = models.ImageField("photo", upload_to='actionners/', blank=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def get_photo_url(self):
+        if self.photo:
+            return self.photo.url
+        return static(DEFAULT_ACTIONNER_PHOTO)
 
 
 class SensorData(models.Model):

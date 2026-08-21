@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260" role="img" aria-label="Photo par défaut">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EAF7EF"/>
+      <stop offset="1" stop-color="#D7EEE0"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="260" fill="url(#wall)"/>
+
+  <!-- the glow of a plug that is live -->
+  <circle cx="186" cy="130" r="88" fill="#F7C948" opacity=".16"/>
+
+  <!-- the lead, leaving on the right -->
+  <path d="M254 130h40a20 20 0 0 1 20 20v56" fill="none" stroke="#52525B" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- the body of the plug -->
+  <rect x="118" y="62" width="136" height="136" rx="30" fill="#14432A"/>
+
+  <!-- the power symbol on its face: an arc left open at the top, and the bar
+       running up through the opening -->
+  <path d="M207.9 106 A 34 34 0 1 1 164.1 106" fill="none" stroke="#EAF7EF"
+        stroke-width="9" stroke-linecap="round"/>
+  <path d="M186 98v34" stroke="#EAF7EF" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- the little light saying it is on -->
+  <circle cx="186" cy="182" r="6" fill="#7BC96F"/>
+</svg>

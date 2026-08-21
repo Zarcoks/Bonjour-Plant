@@ -1,0 +1,34 @@
+{% extends "plant_management/index.html" %}
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title page-title-sm">Actionneurs</h1>
+      <p class="page-subtitle">Les prises connectées et ce sur quoi elles agissent.</p>
+    </div>
+    <button class="btn-plant" type="button"
+            hx-get="{% url 'create_actionner' %}"
+            hx-target="#actionner-create"
+            hx-swap="innerHTML">
+      <i class="bi bi-plus-lg"></i>
+      Créer
+    </button>
+  </div>
+
+  <div id="actionner-create"></div>
+
+  {% comment %}
+    The grid loads itself again on demand, which is how a deletion is taken
+    into account without swapping anything in place.
+  {% endcomment %}
+  <div id="actionner-grid" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4"
+       hx-get="{% url 'actionners' %}"
+       hx-trigger="refresh-actionners from:body"
+       hx-target="#actionner-grid"
+       hx-swap="innerHTML">
+    {% include "plant_management/actionners/partials/actionners_grid.html" %}
+  </div>
+
+</div>
+{% endblock %}

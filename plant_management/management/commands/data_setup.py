@@ -3,7 +3,7 @@ import datetime
 from django.core.management.base import BaseCommand
 
 from core.app import app
-from plant_management.models import GrowingPlant, PlantType, Sensor
+from plant_management.models import Actionner, GrowingPlant, PlantType, Sensor
 
 logger = app.module_logger("data_setup")
 
@@ -62,6 +62,19 @@ DEFAULT_SENSORS = [
 ]
 
 
+# A few actionners, one of them assigned to no plant at all.
+DEFAULT_ACTIONNERS = [
+    {'name': "Lampe UV du balcon", 'act_on': "luminosity",
+     'mqtt_topic': "bonjour-plant/balcon/lampe/set", 'plant': "Basilic du balcon", 'is_on': True},
+    {'name': "Humidificateur de la serre", 'act_on': "humidity",
+     'mqtt_topic': "bonjour-plant/serre/brumisateur/set", 'plant': "Tomates de la serre", 'is_on': False},
+    {'name': "Tapis chauffant du jardin", 'act_on': "temperature",
+     'mqtt_topic': "bonjour-plant/jardin/tapis/set", 'plant': "Fraisier du jardin", 'is_on': True},
+    {'name': "Prise de rechange", 'act_on': "humidity",
+     'mqtt_topic': "bonjour-plant/atelier/prise/set", 'plant': None, 'is_on': False},
+]
+
+
 class Command(BaseCommand):
     help = "Sets up the plant types the application knows by default."
 
@@ -90,4 +103,14 @@ class Command(BaseCommand):
             if created:
                 logger.info("Le capteur " + fields['name'] + " a été installé")
 
-        self.stdout.write(self.style.SUCCESS("Plant types, growing plants and sensors are set up."))
+        for actionner in DEFAULT_ACTIONNERS:
+            fields = dict(actionner)
+            plant_name = fields.pop('plant')
+            fields['plant'] = GrowingPlant.objects.filter(display_name=plant_name).first() if plant_name else None
+            if fields['is_on']:
+                fields['last_switch'] = datetime.datetime.now() - datetime.timedelta(hours=6)
+            _, created = Actionner.objects.get_or_create(name=fields['name'], defaults=fields)
+            if created:
+                logger.info("L'actionneur " + fields['name'] + " a été installé")
+
+        self.stdout.write(self.style.SUCCESS("Plant types, growing plants, sensors and actionners are set up."))

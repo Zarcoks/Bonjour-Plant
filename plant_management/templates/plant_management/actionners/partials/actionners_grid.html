@@ -1,0 +1,14 @@
+{% comment %}The cards alone, so that the page can load its grid again.{% endcomment %}
+{% for actionner in actionners %}
+  {% include "plant_management/actionners/partials/actionner_card.html" %}
+{% endfor %}
+
+{# Always rendered, so the creation answer can always clear it out of band. #}
+<div id="actionner-empty" class="col-12 grid-empty">
+  {% if not actionners %}
+    <div class="empty-state">
+      <i class="bi bi-plug"></i>
+      <p>Aucun actionneur pour l'instant. Créez le premier !</p>
+    </div>
+  {% endif %}
+</div>

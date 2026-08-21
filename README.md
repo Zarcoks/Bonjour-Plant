@@ -13,7 +13,7 @@ simple comme bonjour.
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
-  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `SensorData`, `AppLog`
+  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `SensorData`, `Actionner`, `AppLog`
   - `pages/<page>/` : un dossier par page, contenant ses `views.py`, `urls.py`
     et son `forms.py`
   - `templates/plant_management/<page>/` : les templates de la page, ses
@@ -136,6 +136,11 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/sensors/<id>/` | `sensor_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/sensors/<id>/card/` | `sensor_card` | carte repliée (sert aussi de « Annuler ») |
 | `/sensors/<id>/delete/` | `delete_sensor` | POST : suppression, après confirmation |
+| `/actionners/` | `actionners` | la grille des actionneurs |
+| `/actionners/create/` | `create_actionner` | GET : formulaire de création, POST : création |
+| `/actionners/<id>/` | `actionner_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
+| `/actionners/<id>/card/` | `actionner_card` | carte repliée (sert aussi de « Annuler ») |
+| `/actionners/<id>/delete/` | `delete_actionner` | POST : suppression, après confirmation |
 | `/logs/` | `logs` | le journal de l'application, filtrable |
 | `/logs/topics/` | `mqtt_topics` | les topics MQTT écoutés en ce moment |
 
@@ -216,6 +221,27 @@ interface : `humidity_payload_label`, `luminosity_payload_label` et
 `temperature` par défaut ; un champ laissé vide reprend cette valeur à
 l'enregistrement, et les méthodes `get_*_label()` du modèle assurent le même
 repli pour une ligne écrite hors de l'interface.
+
+## Les actionneurs
+
+Un actionneur est une prise connectée avec un appareil dessus — lampe UV,
+humidificateur, tapis chauffant. Sa page reprend le CRUD des capteurs : grille de
+cartes, carte dépliée modifiable, photo par défaut, création en HTMX,
+suppression après confirmation.
+
+Il porte son nom, sa photo, son état (`is_on`), la plante à laquelle il est
+assigné ou non, le topic MQTT sur lequel envoyer l'ordre de bascule, et le
+facteur sur lequel il agit (`act_on` : humidité, lumière ou température, les
+mêmes noms que les mesures). `last_switch` est daté par le formulaire, et
+seulement quand l'état change vraiment : modifier le nom ne compte pas comme une
+bascule.
+
+Comme pour les capteurs, la suppression est douce (`is_deleted`), demande
+confirmation, et la réponse renvoie `HX-Trigger: refresh-actionners` sur lequel
+la grille se recharge. Supprimer une plante libère aussi ses actionneurs.
+
+Une chose reste à faire : **rien n'est encore envoyé sur le topic** —
+l'application enregistre l'état voulu, elle ne commande pas encore la prise.
 
 ## Le worker MQTT
 

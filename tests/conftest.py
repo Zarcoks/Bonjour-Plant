@@ -4,7 +4,7 @@ import io
 import pytest
 from PIL import Image
 
-from plant_management.models import GrowingPlant, PlantType, Sensor
+from plant_management.models import Actionner, GrowingPlant, PlantType, Sensor
 
 
 @pytest.fixture(autouse=True)
@@ -103,5 +103,24 @@ def sensor_payload():
         'name': "Thermomètre de la serre",
         'model': "Zigbee TH-220",
         'mqtt_topic': "bonjour-plant/serre/temperature",
+        'plant': "",
+    }
+
+
+@pytest.fixture
+def actionner(db):
+    return Actionner.objects.create(
+        name="Lampe UV du balcon",
+        act_on="luminosity",
+        mqtt_topic="bonjour-plant/balcon/lampe/set",
+    )
+
+
+@pytest.fixture
+def actionner_payload():
+    return {
+        'name': "Humidificateur de la serre",
+        'act_on': "humidity",
+        'mqtt_topic': "bonjour-plant/serre/brumisateur/set",
         'plant': "",
     }

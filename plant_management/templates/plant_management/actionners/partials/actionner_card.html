@@ -1,0 +1,44 @@
+{% comment %}Collapsed card: photo, name, what it acts on, its state and its plant.{% endcomment %}
+<div class="col" id="actionner-{{ actionner.pk }}">
+  <article class="plant-card"
+           role="button" tabindex="0"
+           hx-get="{% url 'actionner_detail' actionner.pk %}"
+           hx-target="#actionner-{{ actionner.pk }}"
+           hx-swap="outerHTML"
+           hx-trigger="click, keyup[key=='Enter']">
+    <div class="plant-card-media">
+      <img src="{{ actionner.get_photo_url }}" alt="{{ actionner.name }}">
+      <span class="switch-badge{% if actionner.is_on %} is-on{% endif %}">
+        <i class="bi bi-{% if actionner.is_on %}lightning-charge-fill{% else %}power{% endif %}"></i>
+        {% if actionner.is_on %}Allumé{% else %}Éteint{% endif %}
+      </span>
+    </div>
+    <div class="plant-card-body">
+      <h2 class="plant-card-title">{{ actionner.name }}</h2>
+      <p class="plant-card-meta">
+        <i class="bi bi-sliders"></i>
+        Agit sur <strong>{{ actionner.get_act_on_display }}</strong>
+      </p>
+      <p class="sensor-assignment{% if not actionner.plant %} is-free{% endif %}">
+        <i class="bi bi-{% if actionner.plant %}link-45deg{% else %}dash-circle{% endif %}"></i>
+        {% if actionner.plant %}
+          Assigné à <strong>{{ actionner.plant.display_name }}</strong>
+        {% else %}
+          Assigné à aucune plante
+        {% endif %}
+      </p>
+      <p class="switch-when">
+        <i class="bi bi-clock-history"></i>
+        {% if actionner.last_switch %}
+          Basculé {{ actionner.last_switch|timesince }}
+        {% else %}
+          Jamais basculé
+        {% endif %}
+      </p>
+      <span class="plant-card-hint">
+        Voir et modifier
+        <i class="bi bi-chevron-down"></i>
+      </span>
+    </div>
+  </article>
+</div>

@@ -1,0 +1,63 @@
+{% comment %}Expanded card: every field, editable in place.{% endcomment %}
+<div class="col" id="actionner-{{ actionner.pk }}">
+  <article class="plant-card is-open">
+    <form hx-post="{% url 'actionner_detail' actionner.pk %}"
+          hx-target="#actionner-{{ actionner.pk }}"
+          hx-swap="outerHTML"
+          hx-encoding="multipart/form-data">
+      {% csrf_token %}
+
+      <div class="plant-card-media">
+        <img src="{{ actionner.get_photo_url }}" alt="{{ actionner.name }}">
+      </div>
+
+      <div class="plant-card-body">
+        {% for field in form %}
+          {% if field.name != 'photo' and field.name != 'is_on' %}
+            <div class="plant-field">
+              <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+              {{ field }}
+              {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        <label class="switch-check" for="{{ form.is_on.id_for_label }}">
+          {{ form.is_on }}
+          <span><i class="bi bi-lightning-charge"></i> {{ form.is_on.label|capfirst }}</span>
+        </label>
+
+        <div class="plant-field">
+          <label for="{{ form.photo.id_for_label }}">
+            <i class="bi bi-camera"></i>
+            Ajouter une photo
+          </label>
+          {{ form.photo }}
+          {% for error in form.photo.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+
+        <div class="card-actions">
+          {# Nothing is swapped here: the answer asks the page to load its grid again. #}
+          <button class="btn-danger-ghost" type="button"
+                  hx-post="{% url 'delete_actionner' actionner.pk %}"
+                  hx-swap="none"
+                  hx-confirm="Êtes-vous sûr de vouloir supprimer {{ actionner.name }} ?">
+            <i class="bi bi-trash3"></i>
+            Supprimer
+          </button>
+          <span class="card-actions-spacer"></span>
+          <button class="btn-ghost" type="button"
+                  hx-get="{% url 'actionner_card' actionner.pk %}"
+                  hx-target="#actionner-{{ actionner.pk }}"
+                  hx-swap="outerHTML">
+            Annuler
+          </button>
+          <button class="btn-plant" type="submit">
+            <i class="bi bi-check-lg"></i>
+            Valider
+          </button>
+        </div>
+      </div>
+    </form>
+  </article>
+</div>

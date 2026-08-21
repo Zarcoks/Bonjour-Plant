@@ -1,0 +1,7 @@
+{% comment %}
+Answer to a successful creation: the new card is appended to the grid, while the
+out of band swaps close the creation form and drop the "nothing yet" message.
+{% endcomment %}
+{% include "plant_management/actionners/partials/actionner_card.html" %}
+<div id="actionner-create" hx-swap-oob="innerHTML"></div>
+<div id="actionner-empty" hx-swap-oob="innerHTML"></div>
