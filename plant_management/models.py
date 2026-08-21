@@ -51,7 +51,10 @@ class PlantType(models.Model):
     humidity_max = models.IntegerField("humidité max. (%)")
     temperature_min = models.FloatField("temp. min. (°C)")
     temperature_max = models.FloatField("temp. max. (°C)")
-    luminosity_per_day = models.IntegerField("luminosité / jour (h)")
+    # The window of the day the species should be given light in, rather than a
+    # number of hours: it says when, and not only how long.
+    light_starts_at = models.TimeField("lumière à partir de", default=datetime.time(8, 0))
+    light_ends_at = models.TimeField("lumière jusqu'à", default=datetime.time(20, 0))
     harvest_days = models.IntegerField("jours avant récolte")
     photo = models.ImageField("photo", upload_to='plant_types/', blank=True)
 

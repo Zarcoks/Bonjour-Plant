@@ -181,9 +181,10 @@ capteurs ne donnent pas un nombre mais l'un de cinq paliers — `low-`, `low`,
 rang, de 0 à 4. L'interface les écrit en mots : très faible, faible, normale,
 forte, très forte. Une valeur hors de cette échelle est traitée comme inconnue.
 
-C'est une grandeur différente de `luminosity_per_day` du type de plante, qui
-reste le nombre d'**heures** de lumière par jour dont l'espèce a besoin ; les
-deux ne se comparent pas, et le signe soleil/nuage se lit sur le seul niveau.
+C'est une grandeur différente de la **plage horaire** du type de plante
+(`light_starts_at`, `light_ends_at`), qui dit à quelles heures de la journée
+l'espèce devrait recevoir de la lumière ; les deux ne se comparent pas, et le
+signe soleil/nuage se lit sur le seul niveau.
 
 ## Les plantes de la page principale
 

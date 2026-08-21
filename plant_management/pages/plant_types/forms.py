@@ -15,14 +15,18 @@ class PlantTypeForm(forms.ModelForm):
             'humidity_max',
             'temperature_min',
             'temperature_max',
-            'luminosity_per_day',
+            'light_starts_at',
+            'light_ends_at',
             'photo',
         ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
+        for name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control form-control-sm'
+            # An hour of the day is picked in a time input.
+            if name in ('light_starts_at', 'light_ends_at'):
+                field.widget.input_type = 'time'
 
     def clean(self):
         cleaned_data = super().clean()
@@ -32,4 +36,7 @@ class PlantTypeForm(forms.ModelForm):
         temperature_min, temperature_max = cleaned_data.get('temperature_min'), cleaned_data.get('temperature_max')
         if temperature_min is not None and temperature_max is not None and temperature_min > temperature_max:
             self.add_error('temperature_max', "La température maximale doit être supérieure à la température minimale.")
+        starts_at, ends_at = cleaned_data.get('light_starts_at'), cleaned_data.get('light_ends_at')
+        if starts_at is not None and ends_at is not None and starts_at >= ends_at:
+            self.add_error('light_ends_at', "La fin de la lumière doit être après son début.")
         return cleaned_data

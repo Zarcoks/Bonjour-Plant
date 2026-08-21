@@ -281,10 +281,11 @@ def test_a_plant_in_full_light_shows_the_sun(client, growing_plant):
     assert "plant-sign-shade" not in content
 
 
-def test_the_light_sign_does_not_depend_on_the_hours_the_type_asks_for(client, growing_plant):
-    # Hours a day and intensity are two different things: raising the hours the
-    # species needs must not put a well lit plant in the shade.
-    growing_plant.plant_type.luminosity_per_day = 99
+def test_the_light_sign_does_not_depend_on_the_window_of_the_type(client, growing_plant):
+    # The window says when the species wants light, the level says how much it
+    # gets: narrowing the window must not put a well lit plant in the shade.
+    growing_plant.plant_type.light_starts_at = datetime.time(11, 0)
+    growing_plant.plant_type.light_ends_at = datetime.time(12, 0)
     growing_plant.plant_type.save()
     growing_plant.current_luminosity = 4
     growing_plant.save()

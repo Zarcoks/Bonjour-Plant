@@ -33,7 +33,8 @@ def plant_type(db):
         humidity_max=80,
         temperature_min=18.0,
         temperature_max=27.0,
-        luminosity_per_day=6,
+        light_starts_at=datetime.time(8, 0),
+        light_ends_at=datetime.time(20, 0),
         harvest_days=60,
     )
 
@@ -46,7 +47,8 @@ def plant_type_payload():
         'humidity_max': 85,
         'temperature_min': 15.0,
         'temperature_max': 25.0,
-        'luminosity_per_day': 5,
+        'light_starts_at': "09:00",
+        'light_ends_at': "19:00",
         'harvest_days': 45,
     }
 
