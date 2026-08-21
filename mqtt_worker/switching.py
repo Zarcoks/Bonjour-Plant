@@ -6,17 +6,12 @@ from django.core.cache import cache
 from paho.mqtt import publish as mqtt_publish
 
 from core.app import app
-from plant_management.models import Actionner
+from plant_management.models import STATE_OFF, STATE_ON, Actionner
 
 from .broker import broker_from_url
 from .listener import client_id
 
 logger = app.module_logger("actionners")
-
-# What a TS011F plug expects on its set topic, through zigbee2mqtt.
-STATE_KEY = 'state'
-STATE_ON = 'ON'
-STATE_OFF = 'OFF'
 
 
 # How long we remember what was last sent to a plug, so that the same order
@@ -29,8 +24,14 @@ def state_of(actionner):
 
 
 def order_for(actionner):
-    """The order to send this actionner: where to speak, and what to say."""
-    return {'topic': actionner.mqtt_topic, 'payload': json.dumps({STATE_KEY: state_of(actionner)})}
+    """
+    The order to send this actionner: where to speak, and what to say.
+
+    Its state goes out under the key it names its state with, which is the one
+    it reports under too: a plug speaks the same way both ways round.
+    """
+    return {'topic': actionner.mqtt_topic_out,
+            'payload': json.dumps({actionner.get_state_label(): state_of(actionner)})}
 
 
 def orders():
@@ -40,7 +41,7 @@ def orders():
 
 def to_be_told():
     """The actionners that can be reached at all."""
-    return Actionner.objects.filter(is_deleted=False).exclude(mqtt_topic="")
+    return Actionner.objects.filter(is_deleted=False).exclude(mqtt_topic_out="")
 
 
 def sent_key(actionner):
@@ -60,7 +61,7 @@ def remember_what_was_sent(actionner):
         return False
     cache.set(sent_key(actionner), state, timeout=SENT_MEMORY_SECONDS)
     logger.info("Instruction MQTT envoyée à l'actionneur " + actionner.name + " : "
-                + state + " sur " + actionner.mqtt_topic)
+                + state + " sur " + actionner.mqtt_topic_out)
     return True
 
 

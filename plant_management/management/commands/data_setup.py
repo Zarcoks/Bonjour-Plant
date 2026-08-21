@@ -69,16 +69,23 @@ DEFAULT_SENSORS = [
 ]
 
 
-# A few actionners, one of them assigned to no plant at all.
+# A few actionners, one of them assigned to no plant at all. Orders go out on
+# the `/set` topic and the plug reports on the one it hangs off, the way
+# zigbee2mqtt has it; the last one takes orders without reporting anything.
 DEFAULT_ACTIONNERS = [
     {'name': "Lampe UV du balcon", 'act_on': "luminosity",
-     'mqtt_topic': "bonjour-plant/balcon/lampe/set", 'plant': "Basilic du balcon", 'is_on': True},
+     'mqtt_topic_out': "bonjour-plant/balcon/lampe/set", 'mqtt_topic_in': "bonjour-plant/balcon/lampe",
+     'plant': "Basilic du balcon", 'is_on': True},
     {'name': "Humidificateur de la serre", 'act_on': "humidity",
-     'mqtt_topic': "bonjour-plant/serre/brumisateur/set", 'plant': "Tomates de la serre", 'is_on': False},
+     'mqtt_topic_out': "bonjour-plant/serre/brumisateur/set",
+     'mqtt_topic_in': "bonjour-plant/serre/brumisateur",
+     'plant': "Tomates de la serre", 'is_on': False},
     {'name': "Tapis chauffant du jardin", 'act_on': "temperature",
-     'mqtt_topic': "bonjour-plant/jardin/tapis/set", 'plant': "Fraisier du jardin", 'is_on': True},
+     'mqtt_topic_out': "bonjour-plant/jardin/tapis/set", 'mqtt_topic_in': "bonjour-plant/jardin/tapis",
+     'plant': "Fraisier du jardin", 'is_on': True},
     {'name': "Prise de rechange", 'act_on': "humidity",
-     'mqtt_topic': "bonjour-plant/atelier/prise/set", 'plant': None, 'is_on': False},
+     'mqtt_topic_out': "bonjour-plant/atelier/prise/set", 'mqtt_topic_in': "",
+     'plant': None, 'is_on': False},
 ]
 
 

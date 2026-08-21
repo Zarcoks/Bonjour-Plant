@@ -26,6 +26,12 @@ DEFAULT_HUMIDITY_LABEL = 'humidity'
 DEFAULT_LUMINOSITY_LABEL = 'luminosity'
 DEFAULT_TEMPERATURE_LABEL = 'temperature'
 
+# The key a plug usually reports its state under, and what it writes there. A
+# plug naming its state otherwise says so on its own field.
+DEFAULT_STATE_LABEL = 'state'
+STATE_ON = 'ON'
+STATE_OFF = 'OFF'
+
 # What a light sensor reports, from the darkest to the brightest, under the names
 # the sensors themselves use. The measure is a level, not a duration: how many
 # hours of light a species needs a day is the business of its plant type.
@@ -218,7 +224,11 @@ class Actionner(models.Model):
     A connected plug, with something on it that plays on one factor of a plant.
 
     A UV lamp acts on the light, a humidifier on the humidity: `act_on` says
-    which, and `mqtt_topic` is where an order to switch it is to be sent.
+    which.
+
+    The two topics are the two ways round: orders leave on `mqtt_topic_out`, and
+    what the plug says of itself comes back on `mqtt_topic_in`. A plug that only
+    takes orders leaves the second one empty.
     """
     name = models.CharField("nom", max_length=120)
     is_on = models.BooleanField("allumé", default=False)
@@ -226,7 +236,11 @@ class Actionner(models.Model):
     plant = models.ForeignKey(GrowingPlant, verbose_name="assigné à", on_delete=models.SET_NULL,
                               null=True, blank=True, related_name='actionners')
     last_switch = models.DateTimeField("dernier changement", null=True, blank=True)
-    mqtt_topic = models.CharField("topic MQTT", max_length=200)
+    mqtt_topic_out = models.CharField("topic MQTT (commande)", max_length=200)
+    mqtt_topic_in = models.CharField("topic MQTT (état)", max_length=200, blank=True)
+    # How this plug names its state in the payload it reports, and is told on.
+    state_payload_label = models.CharField("état (clé du payload)", max_length=120, blank=True,
+                                           default=DEFAULT_STATE_LABEL)
     act_on = models.CharField("agit sur", max_length=60, choices=ACT_ON_CHOICES, default=ACT_ON_HUMIDITY)
     photo = models.ImageField("photo", upload_to='actionners/', blank=True)
 
@@ -240,6 +254,15 @@ class Actionner(models.Model):
         if self.photo:
             return self.photo.url
         return static(DEFAULT_ACTIONNER_PHOTO)
+
+    def get_state_label(self):
+        """
+        The key its state is written under, on the way out as on the way back.
+
+        A label left empty falls back on the usual name, so that a plug written
+        outside the interface still reads and reports its state.
+        """
+        return self.state_payload_label or DEFAULT_STATE_LABEL
 
 
 class SensorData(models.Model):

@@ -928,6 +928,66 @@ body {
   color: #fff;
 }
 
+/* ── What the plugs belie ─────────────────────────────────── */
+.actionner-warnings:not(:empty) { margin-bottom: 24px; }
+
+.actionner-warning {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border: 1px solid var(--sun);
+  border-radius: var(--radius-lg);
+  background-color: var(--sun-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.actionner-warning + .actionner-warning { margin-top: 10px; }
+
+.actionner-warning-sign {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  color: #97710A;
+}
+
+.actionner-warning-text {
+  flex: 1 1 260px;
+  margin: 0;
+  color: #6B5107;
+  font-size: .9rem;
+}
+
+.actionner-warning-when {
+  display: block;
+  margin-top: 2px;
+  font-size: .75rem;
+  opacity: .75;
+}
+
+.btn-settled {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background-color: rgba(255,255,255,.8);
+  color: #97710A;
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .18s ease, color .18s ease;
+}
+
+.btn-settled:hover {
+  background-color: #97710A;
+  color: #fff;
+}
+
 /* ── Sensors ──────────────────────────────────────────────── */
 .sensor-assignment {
   display: flex;

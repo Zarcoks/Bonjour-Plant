@@ -233,7 +233,7 @@ def test_update_without_a_name_sends_the_form_back(client, growing_plant, plant_
 def test_auto_luminosity_is_toggled(client, growing_plant):
     # A lamp to command, otherwise the card shows no button to read the state on.
     Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
-                             mqtt_topic="bonjour-plant/balcon/lampe/set")
+                             mqtt_topic_out="bonjour-plant/balcon/lampe/set")
     assert growing_plant.auto_luminosity
     url = reverse("growing_plant_auto_luminosity", kwargs={"plant_id": growing_plant.pk})
 
@@ -253,14 +253,14 @@ def test_the_watering_button_only_shows_with_something_to_water_with(client, gro
     # A plant with no pump has nothing to water it: the card offers no button.
     assert "Arrosage automatique" not in client.get(reverse("growing_plants")).content.decode()
     Actionner.objects.create(name="Pompe", act_on="humidity", plant=growing_plant,
-                             mqtt_topic="bonjour-plant/balcon/pompe/set")
+                             mqtt_topic_out="bonjour-plant/balcon/pompe/set")
     assert "Arrosage automatique" in client.get(reverse("growing_plants")).content.decode()
 
 
 def test_auto_watering_is_toggled(client, growing_plant):
     # A pump to command, otherwise the card shows no button to read the state on.
     Actionner.objects.create(name="Pompe", act_on="humidity", plant=growing_plant,
-                             mqtt_topic="bonjour-plant/balcon/pompe/set")
+                             mqtt_topic_out="bonjour-plant/balcon/pompe/set")
     assert not growing_plant.auto_watering
     url = reverse("growing_plant_auto_watering", kwargs={"plant_id": growing_plant.pk})
 
@@ -364,7 +364,7 @@ def test_the_photo_falls_back_on_the_plant_type(growing_plant):
 
 def test_the_light_button_is_shown_when_a_lamp_can_be_commanded(client, growing_plant):
     Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
-                             mqtt_topic="bonjour-plant/balcon/lampe/set")
+                             mqtt_topic_out="bonjour-plant/balcon/lampe/set")
     assert b"light-btn" in client.get(reverse("growing_plants")).content
 
 
@@ -375,19 +375,19 @@ def test_the_light_button_is_hidden_without_a_lamp(client, growing_plant):
 
 def test_a_lamp_acting_on_something_else_does_not_bring_the_button(client, growing_plant):
     Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=growing_plant,
-                             mqtt_topic="bonjour-plant/serre/brumisateur/set")
+                             mqtt_topic_out="bonjour-plant/serre/brumisateur/set")
     assert b"light-btn" not in client.get(reverse("growing_plants")).content
 
 
 def test_a_deleted_lamp_does_not_bring_the_button(client, growing_plant):
     Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
-                             mqtt_topic="bonjour-plant/balcon/lampe/set", is_deleted=True)
+                             mqtt_topic_out="bonjour-plant/balcon/lampe/set", is_deleted=True)
     assert b"light-btn" not in client.get(reverse("growing_plants")).content
 
 
 def test_a_lamp_of_another_plant_does_not_bring_the_button(client, growing_plant, harvested_plant):
     Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=harvested_plant,
-                             mqtt_topic="bonjour-plant/balcon/lampe/set")
+                             mqtt_topic_out="bonjour-plant/balcon/lampe/set")
     assert b"light-btn" not in client.get(reverse("growing_plants")).content
 
 

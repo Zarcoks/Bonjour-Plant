@@ -33,8 +33,8 @@ def test_detail_returns_the_edition_form(client, actionner):
     response = client.get(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}))
     assert response.status_code == 200
     content = response.content.decode()
-    for field in ['name="name"', 'name="act_on"', 'name="mqtt_topic"', 'name="plant"',
-                  'name="is_on"', 'name="photo"']:
+    for field in ['name="name"', 'name="act_on"', 'name="mqtt_topic_out"', 'name="mqtt_topic_in"',
+                  'name="state_payload_label"', 'name="plant"', 'name="is_on"', 'name="photo"']:
         assert field in content
     assert "Valider" in content and "Annuler" in content and "Supprimer" in content
 
@@ -42,7 +42,7 @@ def test_detail_returns_the_edition_form(client, actionner):
 def test_card_returns_the_collapsed_card(client, actionner):
     response = client.get(reverse("actionner_card", kwargs={"actionner_id": actionner.pk}))
     assert response.status_code == 200
-    assert b'name="mqtt_topic"' not in response.content
+    assert b'name="mqtt_topic_out"' not in response.content
 
 
 def test_update(client, actionner, actionner_payload):
@@ -52,18 +52,18 @@ def test_update(client, actionner, actionner_payload):
     actionner.refresh_from_db()
     assert actionner.name == "Humidificateur de la serre"
     assert actionner.act_on == "humidity"
-    assert b'name="mqtt_topic"' not in response.content
+    assert b'name="mqtt_topic_out"' not in response.content
     assert AppLog.objects.filter(type="INFO", message__contains="a été modifié").count() == 1
 
 
 def test_update_without_a_topic_sends_the_form_back(client, actionner, actionner_payload):
-    actionner_payload['mqtt_topic'] = ""
+    actionner_payload['mqtt_topic_out'] = ""
     response = client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}),
                            actionner_payload)
     assert response.status_code == 200
     actionner.refresh_from_db()
     assert actionner.name == "Lampe UV du balcon"
-    assert b'name="mqtt_topic"' in response.content
+    assert b'name="mqtt_topic_out"' in response.content
     assert AppLog.objects.filter(type="WARNING").count() == 1
 
 
@@ -150,7 +150,7 @@ def test_deleting_a_plant_frees_its_actionners(client, actionner, growing_plant)
 def test_create_form(client, db):
     response = client.get(reverse("create_actionner"))
     assert response.status_code == 200
-    assert b'name="mqtt_topic"' in response.content
+    assert b'name="mqtt_topic_out"' in response.content
 
 
 def test_create(client, db, actionner_payload):
@@ -230,7 +230,7 @@ def lamp_of(growing_plant, db):
     growing_plant.auto_luminosity = True
     growing_plant.save()
     return Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=growing_plant,
-                                    mqtt_topic="bonjour-plant/balcon/lampe/set", is_on=True)
+                                    mqtt_topic_out="bonjour-plant/balcon/lampe/set", is_on=True)
 
 
 def payload_of(actionner, **changes):
@@ -238,7 +238,9 @@ def payload_of(actionner, **changes):
     fields = {
         'name': actionner.name,
         'act_on': actionner.act_on,
-        'mqtt_topic': actionner.mqtt_topic,
+        'mqtt_topic_out': actionner.mqtt_topic_out,
+        'mqtt_topic_in': actionner.mqtt_topic_in,
+        'state_payload_label': actionner.state_payload_label,
         'plant': actionner.plant.pk if actionner.plant else "",
     }
     return dict(fields, **changes)
@@ -270,7 +272,7 @@ def test_switching_off_something_that_is_not_a_light_leaves_it_alone(client, gro
     growing_plant.auto_luminosity = True
     growing_plant.save()
     humidifier = Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=growing_plant,
-                                          mqtt_topic="bonjour-plant/serre/brumisateur/set", is_on=True)
+                                          mqtt_topic_out="bonjour-plant/serre/brumisateur/set", is_on=True)
     switch(client, humidifier)
     growing_plant.refresh_from_db()
     assert growing_plant.auto_luminosity
@@ -306,7 +308,7 @@ def pump_of(growing_plant, db):
     growing_plant.auto_watering = True
     growing_plant.save()
     return Actionner.objects.create(name="Pompe", act_on="humidity", plant=growing_plant,
-                                    mqtt_topic="bonjour-plant/balcon/pompe/set", is_on=True)
+                                    mqtt_topic_out="bonjour-plant/balcon/pompe/set", is_on=True)
 
 
 def test_switching_a_pump_off_stops_the_automatic_watering(client, pump_of, growing_plant):

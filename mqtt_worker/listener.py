@@ -12,7 +12,7 @@ from paho.mqtt.enums import CallbackAPIVersion
 from core.app import app
 from plant_management.models import Sensor, SensorData
 
-from . import state, watering
+from . import feedback, state, watering
 from .broker import broker_from_url
 
 logger = app.module_logger("mqtt")
@@ -36,10 +36,14 @@ def client_id():
 
 class SensorListener:
     """
-    Listens to the topics of the registered sensors and records what arrives.
+    Listens to what the installation says, and records what arrives.
+
+    Two kinds of topic are followed: the sensors, whose measures are kept, and
+    the actionners that report their state, which is checked against what the
+    application asked of them.
 
     The subscriptions are read from the database, and read again every
-    `sync_seconds`: a sensor added, deleted or retopiced while the application
+    `sync_seconds`: a device added, deleted or retopiced while the application
     runs is taken into account without a restart.
     """
 
@@ -57,7 +61,8 @@ class SensorListener:
 
     def topics(self):
         """The topics to be subscribed to, as the database has them right now."""
-        return {sensor.mqtt_topic for sensor in self.sensors() if sensor.mqtt_topic}
+        measures = {sensor.mqtt_topic for sensor in self.sensors() if sensor.mqtt_topic}
+        return measures | feedback.topics()
 
     # ── What we do with what arrives ──────────────────────────
 
@@ -66,11 +71,14 @@ class SensorListener:
         Records one measure per sensor listening on that topic, and returns them.
 
         A message on a topic no sensor claims any more is dropped, and so is a
-        message from a sensor assigned to no plant.
+        message from a sensor assigned to no plant. The same message is read for
+        the actionners: a plug reporting a state it was not asked for is warned
+        about, whether or not a sensor made anything of it.
         """
         # The connection of this thread may have been left open for a long time.
         close_old_connections()
         payload = payload[:MAX_PAYLOAD_LENGTH]
+        feedback.check(topic, payload)
         recorded = []
         for sensor in self.sensors():
             if not sensor.mqtt_topic or not topic_matches_sub(sensor.mqtt_topic, topic):

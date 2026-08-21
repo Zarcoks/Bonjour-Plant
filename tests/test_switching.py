@@ -42,14 +42,14 @@ def test_a_deleted_actionner_is_not_told_anything(actionner):
 
 
 def test_an_actionner_without_a_topic_is_not_told_anything(actionner):
-    actionner.mqtt_topic = ""
+    actionner.mqtt_topic_out = ""
     actionner.save()
     assert switching.orders() == []
 
 
 def test_every_actionner_gets_its_own_order(actionner, db):
     Actionner.objects.create(name="Brumisateur", act_on="humidity",
-                             mqtt_topic="bonjour-plant/serre/brumisateur/set", is_on=True)
+                             mqtt_topic_out="bonjour-plant/serre/brumisateur/set", is_on=True)
     orders = switching.orders()
     assert len(orders) == 2
     assert {order['topic'] for order in orders} == {

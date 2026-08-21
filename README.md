@@ -140,6 +140,8 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/sensors/<id>/delete/` | `delete_sensor` | POST : suppression, après confirmation |
 | `/actionners/` | `actionners` | la grille des actionneurs |
 | `/actionners/create/` | `create_actionner` | GET : formulaire de création, POST : création |
+| `/actionners/warnings/` | `actionner_warnings` | les prises qui démentent l'application, redemandé en HTMX |
+| `/actionners/<id>/warnings/dismiss/` | `dismiss_actionner_warning` | POST : « c'est réglé », l'écart est retiré |
 | `/actionners/<id>/` | `actionner_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/actionners/<id>/card/` | `actionner_card` | carte repliée (sert aussi de « Annuler ») |
 | `/actionners/<id>/delete/` | `delete_actionner` | POST : suppression, après confirmation |
@@ -238,11 +240,18 @@ cartes, carte dépliée modifiable, photo par défaut, création en HTMX,
 suppression après confirmation.
 
 Il porte son nom, sa photo, son état (`is_on`), la plante à laquelle il est
-assigné ou non, le topic MQTT sur lequel envoyer l'ordre de bascule, et le
-facteur sur lequel il agit (`act_on` : humidité, lumière ou température, les
-mêmes noms que les mesures). `last_switch` est daté par le formulaire, et
-seulement quand l'état change vraiment : modifier le nom ne compte pas comme une
-bascule.
+assigné ou non, et le facteur sur lequel il agit (`act_on` : humidité, lumière ou
+température, les mêmes noms que les mesures). `last_switch` est daté par le
+formulaire, et seulement quand l'état change vraiment : modifier le nom ne compte
+pas comme une bascule.
+
+Il porte surtout **deux topics, un par sens** : `mqtt_topic_out`, sur lequel
+partent les ordres de bascule, et `mqtt_topic_in`, sur lequel la prise raconte ce
+qu'elle est vraiment. Une prise qui ne fait que recevoir des ordres laisse le
+second vide. `state_payload_label` dit sous quelle clé son état est écrit dans le
+payload — `state` par défaut, la clé de zigbee2mqtt — et cette clé sert dans les
+deux sens : on parle à une prise comme elle nous parle. Les trois champs se
+modifient depuis la carte dépliée.
 
 Comme pour les capteurs, la suppression est douce (`is_deleted`), demande
 confirmation, et la réponse renvoie `HX-Trigger: refresh-actionners` sur lequel
@@ -253,7 +262,7 @@ la grille se recharge. Supprimer une plante libère aussi ses actionneurs.
 `mqtt_worker/switching.py` fait suivre la réalité : toutes les
 `ACTIONNER_SYNC_SECONDS` (60 s par défaut), la tâche
 `mqtt_worker.switch_the_plugs` envoie à chaque actionneur l'état que la base dit
-qu'il devrait avoir, sur son `mqtt_topic`. Le format est celui qu'attend une
+qu'il devrait avoir, sur son `mqtt_topic_out`. Le format est celui qu'attend une
 prise TS011F derrière zigbee2mqtt :
 
 ```
@@ -274,28 +283,58 @@ et l'instruction partie sur le broker (« Instruction MQTT envoyée … : ON sur
 passage, mais une ligne par prise et par minute enterrerait tout le reste du
 journal. Le dernier état envoyé est retenu en cache pour cela.
 
-La base est donc la référence, et la synchronisation va dans ce sens seulement :
-l'application ne lit pas ce que la prise raconte d'elle-même.
+### Ce que la prise raconte d'elle-même
+
+La base reste la référence, mais la prise a maintenant droit à la parole.
+`mqtt_worker/feedback.py` lit les messages qui arrivent sur le `mqtt_topic_in`
+d'un actionneur, en sort l'état sous la clé de cet actionneur, et le compare à ce
+que l'application attend de lui :
+
+```
+bonjour-plant/balcon/lampe   {"state": "ON"}   alors que la base la veut éteinte
+```
+
+Les prises ne disent pas toutes « ON » et « OFF » : `true`, `1`, `yes`, `off`,
+quelle que soit la casse, sont comprises aussi. Un payload illisible, sans la
+clé, ou portant autre chose qu'un état **n'est pas un désaccord** — on ne
+signale que ce qu'on a su lire.
+
+Un désaccord est déposé dans le cache, une entrée par actionneur, **sans
+expiration** : il tient jusqu'à ce que l'utilisateur appuie sur « C'est réglé »
+sur la page principale. Une prise qui se remet d'accord toute seule ne retire
+donc pas le message — une prise qui a dérivé mérite d'être vue, même une fois
+rentrée dans le rang. Le désaccord qui tient déjà est rafraîchi (dernier état
+entendu, heure) sans repartir : le journal garde une ligne `WARNING` par prise
+qui a dérivé, pas une par message qu'elle envoie. Supprimer un actionneur retire
+son message.
+
+Le bandeau vit en haut de la page « Mes plantes ». Il se redemande tout seul
+toutes les 15 secondes, en HTMX, donc une prise qui dérive pendant que la page
+est ouverte apparaît sans rechargement ; « C'est réglé » retire une ligne et
+renvoie le bandeau, les autres écarts restent. Les écarts sont lus depuis le
+cache en partant des actionneurs de la base — jamais en listant le cache lui-même.
 
 ## Le worker MQTT
 
-Le paquet `mqtt_worker/` écoute les capteurs. L'adresse du broker vient de
+Le paquet `mqtt_worker/` écoute l'installation. L'adresse du broker vient de
 `MQTT_BROKER_URL` dans le `.env` (`mqtt://`, `mqtts://`, avec identifiants
-éventuels), les topics viennent du champ `mqtt_topic` des capteurs.
+éventuels), les topics viennent du champ `mqtt_topic` des capteurs et du
+`mqtt_topic_in` des actionneurs qui rapportent leur état.
 
 Le worker démarre **tout seul** : le signal Celery `worker_ready` met la tâche
 `mqtt_worker.listen_to_sensors` en file dès que le worker est prêt, sans rien à
 lancer à la main. La tâche garde la connexion aussi longtemps que le worker
 vit ; si elle tombe, elle est remise en file.
 
-Toutes les `MQTT_SYNC_SECONDS` (30 s par défaut), le worker relit la table des
-capteurs et met ses abonnements à jour : un capteur ajouté est écouté, un
-capteur supprimé ou dont le topic change voit son ancien topic abandonné. Une
+Toutes les `MQTT_SYNC_SECONDS` (30 s par défaut), le worker relit les appareils
+et met ses abonnements à jour : un appareil ajouté est écouté, un appareil
+supprimé ou dont le topic change voit son ancien topic abandonné. Une
 reconnexion au broker reprend tous les abonnements, puisqu'une nouvelle session
 MQTT n'en porte aucun.
 
 À l'arrivée d'un message, une ligne `sensor_data` est écrite par capteur assigné
-qui écoute ce topic. **Une donnée venant d'un capteur assigné à aucune plante
+qui écoute ce topic, et le même message est relu pour les actionneurs qui
+rapportent sur ce topic. **Une donnée venant d'un capteur assigné à aucune plante
 est abandonnée**, comme celle d'un topic que plus aucun capteur ne réclame. Les
 topics à jokers (`bonjour-plant/+/humidity`) sont gérés.
 

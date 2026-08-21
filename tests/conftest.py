@@ -114,7 +114,8 @@ def actionner(db):
     return Actionner.objects.create(
         name="Lampe UV du balcon",
         act_on="luminosity",
-        mqtt_topic="bonjour-plant/balcon/lampe/set",
+        mqtt_topic_out="bonjour-plant/balcon/lampe/set",
+        mqtt_topic_in="bonjour-plant/balcon/lampe",
     )
 
 
@@ -123,6 +124,7 @@ def actionner_payload():
     return {
         'name': "Humidificateur de la serre",
         'act_on': "humidity",
-        'mqtt_topic': "bonjour-plant/serre/brumisateur/set",
+        'mqtt_topic_out': "bonjour-plant/serre/brumisateur/set",
+        'mqtt_topic_in': "bonjour-plant/serre/brumisateur",
         'plant': "",
     }

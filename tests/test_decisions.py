@@ -25,7 +25,7 @@ def lit_plant(growing_plant):
 @pytest.fixture
 def lamp(lit_plant):
     return Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=lit_plant,
-                                    mqtt_topic="bonjour-plant/balcon/lampe/set", is_on=False)
+                                    mqtt_topic_out="bonjour-plant/balcon/lampe/set", is_on=False)
 
 
 # --- Inside and outside the window ---
@@ -81,7 +81,7 @@ def test_a_plant_whose_light_is_not_automatic_is_left_alone(lamp, lit_plant):
 
 def test_an_actionner_acting_on_something_else_is_left_alone(lit_plant):
     humidifier = Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=lit_plant,
-                                          mqtt_topic="bonjour-plant/serre/brumisateur/set")
+                                          mqtt_topic_out="bonjour-plant/serre/brumisateur/set")
     light_the_plants(at=MIDDAY)
     humidifier.refresh_from_db()
     assert not humidifier.is_on
@@ -97,7 +97,7 @@ def test_a_deleted_actionner_is_left_alone(lamp):
 
 def test_an_actionner_of_no_plant_is_left_alone(db, lit_plant):
     free = Actionner.objects.create(name="Prise libre", act_on="luminosity",
-                                    mqtt_topic="bonjour-plant/atelier/prise/set")
+                                    mqtt_topic_out="bonjour-plant/atelier/prise/set")
     light_the_plants(at=MIDDAY)
     free.refresh_from_db()
     assert not free.is_on
@@ -117,7 +117,7 @@ def test_a_plant_without_a_lamp_decides_nothing(lit_plant):
 
 def test_every_lamp_of_a_plant_follows(lamp, lit_plant):
     second = Actionner.objects.create(name="Seconde lampe", act_on="luminosity", plant=lit_plant,
-                                      mqtt_topic="bonjour-plant/balcon/lampe2/set")
+                                      mqtt_topic_out="bonjour-plant/balcon/lampe2/set")
     assert light_the_plants(at=MIDDAY)['switched_on'] == 2
     second.refresh_from_db()
     assert second.is_on
@@ -132,7 +132,7 @@ def test_each_plant_follows_its_own_window(lamp, lit_plant, harvested_plant):
     harvested_plant.auto_luminosity = True
     harvested_plant.save()
     night_lamp = Actionner.objects.create(name="Lampe de nuit", act_on="luminosity",
-                                          plant=harvested_plant, mqtt_topic="nuit/set")
+                                          plant=harvested_plant, mqtt_topic_out="nuit/set")
 
     light_the_plants(at=MIDDAY)
     lamp.refresh_from_db()
@@ -175,7 +175,7 @@ def dry_plant(growing_plant):
 @pytest.fixture
 def humidifier(dry_plant):
     return Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=dry_plant,
-                                    mqtt_topic="bonjour-plant/serre/brumisateur/set", is_on=False)
+                                    mqtt_topic_out="bonjour-plant/serre/brumisateur/set", is_on=False)
 
 
 def test_a_plant_below_the_middle_of_its_range_is_watered(humidifier):
@@ -234,7 +234,7 @@ def test_a_plant_whose_watering_is_not_automatic_is_left_alone(humidifier, dry_p
 
 def test_an_actionner_acting_on_something_else_is_left_dry(dry_plant):
     lamp = Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=dry_plant,
-                                    mqtt_topic="bonjour-plant/balcon/lampe/set")
+                                    mqtt_topic_out="bonjour-plant/balcon/lampe/set")
     water_the_plants()
     lamp.refresh_from_db()
     assert not lamp.is_on
@@ -250,7 +250,7 @@ def test_a_deleted_humidifier_is_left_alone(humidifier):
 
 def test_a_humidifier_of_no_plant_is_left_alone(db, dry_plant):
     free = Actionner.objects.create(name="Prise libre", act_on="humidity",
-                                    mqtt_topic="bonjour-plant/atelier/prise/set")
+                                    mqtt_topic_out="bonjour-plant/atelier/prise/set")
     water_the_plants()
     free.refresh_from_db()
     assert not free.is_on
@@ -264,7 +264,7 @@ def test_a_deleted_plant_is_never_watered(humidifier, dry_plant):
 
 def test_every_humidifier_of_a_plant_follows(humidifier, dry_plant):
     second = Actionner.objects.create(name="Second brumisateur", act_on="humidity", plant=dry_plant,
-                                      mqtt_topic="bonjour-plant/serre/brumisateur2/set")
+                                      mqtt_topic_out="bonjour-plant/serre/brumisateur2/set")
     assert water_the_plants()['switched_on'] == 2
     second.refresh_from_db()
     assert second.is_on
@@ -279,7 +279,7 @@ def test_each_plant_follows_the_range_of_its_own_species(humidifier, dry_plant, 
     harvested_plant.current_humidity = 55
     harvested_plant.save()
     cactus_mister = Actionner.objects.create(name="Brumisateur du cactus", act_on="humidity",
-                                             plant=harvested_plant, mqtt_topic="cactus/set")
+                                             plant=harvested_plant, mqtt_topic_out="cactus/set")
 
     water_the_plants()
     humidifier.refresh_from_db()

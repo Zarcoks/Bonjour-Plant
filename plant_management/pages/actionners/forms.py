@@ -10,7 +10,8 @@ class ActionnerForm(forms.ModelForm):
 
     class Meta:
         model = Actionner
-        fields = ['name', 'act_on', 'mqtt_topic', 'plant', 'is_on', 'photo']
+        fields = ['name', 'act_on', 'mqtt_topic_out', 'mqtt_topic_in', 'state_payload_label',
+                  'plant', 'is_on', 'photo']
         widgets = {'photo': PhotoInput}
 
     def __init__(self, *args, **kwargs):

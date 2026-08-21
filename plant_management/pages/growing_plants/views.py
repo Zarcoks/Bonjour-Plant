@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
+from mqtt_worker import feedback
 from plant_management.models import GrowingPlant
 
 from .forms import GrowingPlantCreateForm, GrowingPlantForm
@@ -50,6 +51,8 @@ class GrowingPlantList(View):
         context = {'plants': growing_plants(show_harvested), 'show_harvested': show_harvested}
         if request.headers.get('HX-Request'):
             return render(request, TEMPLATES + 'partials/growing_plants_list.html', context)
+        # The banner keeps itself fresh afterwards: it is only seeded here.
+        context['warnings'] = feedback.disagreements()
         return render(request, TEMPLATES + 'growing_plants.html', context)
 
 

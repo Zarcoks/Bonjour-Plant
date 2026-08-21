@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
+from mqtt_worker import feedback
 from plant_management.models import ACT_ON_HUMIDITY, ACT_ON_LUMINOSITY, Actionner
 
 from .forms import ActionnerForm
@@ -139,7 +140,39 @@ class ActionnerDelete(View):
         actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
         actionner.is_deleted = True
         actionner.save()
+        # Nobody is going to settle the disagreement of a plug that is gone.
+        feedback.dismiss(actionner.pk)
         logger.info("L'actionneur " + actionner.name + " a été supprimé")
         response = HttpResponse(status=204)
         response['HX-Trigger'] = REFRESH_EVENT
         return response
+
+
+def warnings_banner(request):
+    """The disagreements standing, as the main page shows them."""
+    return render(request, TEMPLATES + 'partials/warnings.html',
+                  {'warnings': feedback.disagreements()})
+
+
+class ActionnerWarnings(View):
+    """
+    What the plugs belie, asked for again every few seconds by the main page.
+
+    The answer comes from the cache the MQTT worker writes to, not from the
+    worker itself.
+    """
+
+    def get(self, request):
+        return warnings_banner(request)
+
+
+class DismissActionnerWarning(View):
+    """« C'est réglé » : the user takes one disagreement away."""
+
+    def post(self, request, actionner_id):
+        actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
+        feedback.dismiss(actionner.pk)
+        logger.info("L'écart de l'actionneur " + actionner.name
+                    + " a été réglé par l'utilisateur")
+        # The whole banner comes back: settling one warning leaves the others.
+        return warnings_banner(request)
