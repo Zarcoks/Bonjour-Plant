@@ -75,15 +75,15 @@ def test_a_payload_carrying_no_state_reports_nothing(plug, payload):
 
 def test_a_plug_reporting_what_it_was_asked_raises_nothing(plug):
     assert reports(plug, says("OFF")) == []
-    assert feedback.disagreements() == []
+    assert feedback.standing() == []
 
 
 def test_a_plug_reporting_otherwise_is_warned_about(plug):
     assert reports(plug, says("ON")) == [plug]
-    warning = feedback.disagreements()[0]
+    warning = feedback.standing()[0]
     assert warning['name'] == "Lampe UV du balcon"
-    assert warning['reported'] is True
-    assert warning['expected'] is False
+    assert warning['kind'] == feedback.KIND_STATE
+    assert warning['message'] == "se dit allumé alors que l'application le veut éteint"
 
 
 def test_the_disagreement_is_written_in_the_journal(plug):
@@ -98,14 +98,14 @@ def test_the_same_disagreement_is_written_once(plug):
         reports(plug, says("ON"))
     # One line per plug that drifted, not one per message it sends.
     assert AppLog.objects.filter(type="WARNING").count() == 1
-    assert len(feedback.disagreements()) == 1
+    assert len(feedback.standing()) == 1
 
 
 def test_a_standing_warning_keeps_the_time_it_was_first_seen(plug):
     reports(plug, says("ON"))
-    since = feedback.disagreements()[0]['since']
+    since = feedback.standing()[0]['since']
     reports(plug, says("ON"))
-    refreshed = feedback.disagreements()[0]
+    refreshed = feedback.standing()[0]
     assert refreshed['since'] == since
     assert refreshed['at'] > since
 
@@ -114,18 +114,18 @@ def test_the_warning_stands_when_the_plug_falls_back_in_line(plug):
     reports(plug, says("ON"))
     reports(plug, says("OFF"))
     # Only the user settles a warning: a plug that drifted is worth knowing about.
-    assert len(feedback.disagreements()) == 1
+    assert len(feedback.standing()) == 1
 
 
 @pytest.mark.parametrize("payload", ["pas du json", '{}', '{"state": "banane"}'])
 def test_a_payload_we_cannot_read_is_no_disagreement(plug, payload):
     assert reports(plug, payload) == []
-    assert feedback.disagreements() == []
+    assert feedback.standing() == []
 
 
 def test_a_message_on_another_topic_is_not_read(plug):
     assert feedback.check("bonjour-plant/serre/brumisateur", says("ON")) == []
-    assert feedback.disagreements() == []
+    assert feedback.standing() == []
 
 
 def test_a_plug_that_reports_nowhere_is_never_read(plug):
@@ -145,7 +145,7 @@ def test_a_deleted_plug_is_not_complained_about(plug):
     reports(plug, says("ON"))
     plug.is_deleted = True
     plug.save()
-    assert feedback.disagreements() == []
+    assert feedback.standing() == []
 
 
 def test_every_plug_listening_on_that_topic_is_read(plug, db):
@@ -164,7 +164,7 @@ def test_disagreements_come_back_newest_first(plug, db):
                                      mqtt_topic_in="bonjour-plant/serre/brumisateur")
     reports(plug, says("ON"))
     feedback.check(other.mqtt_topic_in, says("ON"))
-    assert [warning['name'] for warning in feedback.disagreements()] == ["Brumisateur",
+    assert [warning['name'] for warning in feedback.standing()] == ["Brumisateur",
                                                                         "Lampe UV du balcon"]
 
 
@@ -176,7 +176,7 @@ def test_the_topics_carry_the_plugs_that_report(listener, plug, sensor):
 
 def test_a_message_is_read_for_the_plugs_too(listener, plug):
     listener.handle_message(plug.mqtt_topic_in, says("ON"))
-    assert len(feedback.disagreements()) == 1
+    assert len(feedback.standing()) == 1
 
 
 # --- The banner on the main page ---
@@ -202,9 +202,9 @@ def test_the_banner_can_be_asked_for_on_its_own(client, plug):
 
 def test_the_user_settles_a_warning(client, plug):
     reports(plug, says("ON"))
-    response = client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk}))
+    response = client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk, "kind": "state"}))
     assert response.status_code == 200
-    assert feedback.disagreements() == []
+    assert feedback.standing() == []
     assert "C'est réglé" not in response.content.decode()
     assert AppLog.objects.filter(type="INFO", message__contains="a été réglé").count() == 1
 
@@ -215,26 +215,31 @@ def test_settling_one_warning_leaves_the_others(client, plug, db):
                                      mqtt_topic_in="bonjour-plant/serre/brumisateur")
     reports(plug, says("ON"))
     feedback.check(other.mqtt_topic_in, says("ON"))
-    response = client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk}))
-    assert [warning['name'] for warning in feedback.disagreements()] == ["Brumisateur"]
+    response = client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk, "kind": "state"}))
+    assert [warning['name'] for warning in feedback.standing()] == ["Brumisateur"]
     assert "Brumisateur" in response.content.decode()
 
 
 def test_a_warning_settled_comes_back_when_the_plug_drifts_again(client, plug):
     reports(plug, says("ON"))
-    client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk}))
+    client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk, "kind": "state"}))
     reports(plug, says("ON"))
-    assert len(feedback.disagreements()) == 1
+    assert len(feedback.standing()) == 1
 
 
 def test_deleting_an_actionner_settles_its_warning(client, plug):
     reports(plug, says("ON"))
     client.post(reverse("delete_actionner", kwargs={"actionner_id": plug.pk}))
-    assert feedback.disagreements() == []
+    assert feedback.standing() == []
 
 
 def test_a_warning_of_a_deleted_actionner_cannot_be_settled(client, plug):
     plug.is_deleted = True
     plug.save()
     assert client.post(reverse("dismiss_actionner_warning",
-                               kwargs={"actionner_id": plug.pk})).status_code == 404
+                               kwargs={"actionner_id": plug.pk, "kind": "state"})).status_code == 404
+
+
+def test_a_kind_of_warning_that_does_not_exist_is_refused(client, plug):
+    assert client.post(reverse("dismiss_actionner_warning",
+                               kwargs={"actionner_id": plug.pk, "kind": "banane"})).status_code == 404

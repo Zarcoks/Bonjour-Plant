@@ -11,6 +11,7 @@ simple comme bonjour.
 - `mqtt_worker/` : le worker qui écoute les capteurs sur le broker MQTT
 - `sync_worker/` : le worker qui recopie les mesures reçues sur les plantes
 - `decision_worker/` : le worker qui prend les décisions automatiques
+- `coherence_worker/` : le worker qui vérifie que les prises font ce qu'on leur demande
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
@@ -141,7 +142,7 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/actionners/` | `actionners` | la grille des actionneurs |
 | `/actionners/create/` | `create_actionner` | GET : formulaire de création, POST : création |
 | `/actionners/warnings/` | `actionner_warnings` | les prises qui démentent l'application, redemandé en HTMX |
-| `/actionners/<id>/warnings/dismiss/` | `dismiss_actionner_warning` | POST : « c'est réglé », l'écart est retiré |
+| `/actionners/<id>/warnings/<genre>/dismiss/` | `dismiss_actionner_warning` | POST : « c'est réglé », cet écart-là est retiré |
 | `/actionners/<id>/` | `actionner_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/actionners/<id>/card/` | `actionner_card` | carte repliée (sert aussi de « Annuler ») |
 | `/actionners/<id>/delete/` | `delete_actionner` | POST : suppression, après confirmation |
@@ -299,20 +300,27 @@ quelle que soit la casse, sont comprises aussi. Un payload illisible, sans la
 clé, ou portant autre chose qu'un état **n'est pas un désaccord** — on ne
 signale que ce qu'on a su lire.
 
-Un désaccord est déposé dans le cache, une entrée par actionneur, **sans
-expiration** : il tient jusqu'à ce que l'utilisateur appuie sur « C'est réglé »
-sur la page principale. Une prise qui se remet d'accord toute seule ne retire
-donc pas le message — une prise qui a dérivé mérite d'être vue, même une fois
-rentrée dans le rang. Le désaccord qui tient déjà est rafraîchi (dernier état
-entendu, heure) sans repartir : le journal garde une ligne `WARNING` par prise
-qui a dérivé, pas une par message qu'elle envoie. Supprimer un actionneur retire
-son message.
+Un désaccord est déposé dans le cache **sans expiration** : il tient jusqu'à ce
+que l'utilisateur appuie sur « C'est réglé » sur la page principale. Une prise
+qui se remet d'accord toute seule ne retire donc pas le message — une prise qui
+a dérivé mérite d'être vue, même une fois rentrée dans le rang. Le désaccord qui
+tient déjà est rafraîchi (dernier état entendu, heure) sans repartir : le
+journal garde une ligne `WARNING` par prise qui a dérivé, pas une par message
+qu'elle envoie. Supprimer un actionneur retire ses messages.
+
+Une prise peut démentir l'application de deux façons, et les deux tiennent en
+même temps : `state`, l'état qu'elle annonce (ci-dessus), et `effect`, l'effet
+qu'elle n'a pas (plus bas). Le cache porte donc **une entrée par actionneur et
+par genre**, chacune signalée et réglée séparément ; c'est le genre qui voyage
+dans l'URL de « C'est réglé ». Chaque avertissement porte la phrase à afficher,
+qui suit le nom de la prise sur la page comme dans le journal.
 
 Le bandeau vit en haut de la page « Mes plantes ». Il se redemande tout seul
 toutes les 15 secondes, en HTMX, donc une prise qui dérive pendant que la page
 est ouverte apparaît sans rechargement ; « C'est réglé » retire une ligne et
 renvoie le bandeau, les autres écarts restent. Les écarts sont lus depuis le
-cache en partant des actionneurs de la base — jamais en listant le cache lui-même.
+cache en partant des actionneurs de la base croisés avec les genres — jamais en
+listant le cache lui-même.
 
 ## Le worker MQTT
 
@@ -486,6 +494,40 @@ tour, dit aux prises l'état voulu. La bascule est donc datée tout de suite
 (`last_switch`) et atteint la prise au passage suivant, dans la minute. Chaque
 bascule laisse une ligne dans le journal, et une décision qui ne change rien n'en
 laisse aucune.
+
+## La cohérence de l'installation
+
+`coherence_worker/` répond à une autre question : la prise fait-elle vraiment
+quelque chose ? La tâche `coherence_worker.check_the_plugs` tourne toutes les
+`COHERENCE_SECONDS` (300 s par défaut) et passe en revue chaque actionneur
+assigné à une plante.
+
+Pour chacun, elle prend la mesure sur laquelle il agit (`act_on` : humidité,
+lumière ou température) dans les données des capteurs de **sa** plante, et
+compare la dernière valeur à celle d'il y a au moins cinq minutes :
+
+- prise **éteinte** et la mesure **monte franchement** → avertissement ;
+- prise **allumée** et la mesure **baisse ou stagne** → avertissement ;
+- tout le reste → rien.
+
+« Franchement » veut dire au moins 5 points d'humidité, 1 °C, ou un cran de
+l'échelle de lumière : en dessous, la mesure ne fait que respirer. Dans l'autre
+sens il n'y a pas de seuil — une prise allumée qui fait monter la mesure, même
+d'un point, fait son travail.
+
+Quatre cas ne se jugent pas, et ne disent donc rien : une prise assignée à
+aucune plante, une plante dont aucun capteur ne rapporte cette mesure-là, une
+dernière mesure sans rien d'assez ancien à quoi la comparer, et une dernière
+mesure vieille de plus de quinze minutes — un capteur qui s'est tu n'est pas une
+prise qui ne marche plus. Les mesures sont lues avec les clés de leur propre
+capteur, et une lecture qui ne porte pas la mesure n'en cache pas une autre
+derrière elle.
+
+L'avertissement passe par le même cache que ceux du worker MQTT, sous le genre
+`effect`, et s'affiche dans le même bandeau : « Brumisateur est allumé, mais
+l'humidité ne monte pas (50 % puis 48 %) ». **Rien n'est basculé ici** : ce que
+font les prises est l'affaire de l'utilisateur, le worker se contente de dire ce
+qui ne colle pas.
 
 ## Tests
 

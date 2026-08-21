@@ -52,7 +52,7 @@ class GrowingPlantList(View):
         if request.headers.get('HX-Request'):
             return render(request, TEMPLATES + 'partials/growing_plants_list.html', context)
         # The banner keeps itself fresh afterwards: it is only seeded here.
-        context['warnings'] = feedback.disagreements()
+        context['warnings'] = feedback.standing()
         return render(request, TEMPLATES + 'growing_plants.html', context)
 
 

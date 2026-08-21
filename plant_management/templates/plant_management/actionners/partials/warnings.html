@@ -12,13 +12,11 @@ that a plug drifting while the page is open shows up on its own.
     <article class="actionner-warning">
       <i class="bi bi-exclamation-triangle-fill actionner-warning-sign"></i>
       <p class="actionner-warning-text">
-        <strong>{{ warning.name }}</strong> se dit
-        {% if warning.reported %}allumé{% else %}éteint{% endif %} alors que
-        l'application le veut {% if warning.expected %}allumé{% else %}éteint{% endif %}.
+        <strong>{{ warning.name }}</strong> {{ warning.message }}.
         <span class="actionner-warning-when">Signalé il y a {{ warning.since|timesince }}</span>
       </p>
       <button class="btn-settled" type="button"
-              hx-post="{% url 'dismiss_actionner_warning' warning.actionner %}"
+              hx-post="{% url 'dismiss_actionner_warning' warning.actionner warning.kind %}"
               hx-target="#actionner-warnings"
               hx-swap="outerHTML"
               hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>

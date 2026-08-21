@@ -1,9 +1,10 @@
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
 from mqtt_worker import feedback
+from mqtt_worker.feedback import WARNING_KINDS
 from plant_management.models import ACT_ON_HUMIDITY, ACT_ON_LUMINOSITY, Actionner
 
 from .forms import ActionnerForm
@@ -140,7 +141,7 @@ class ActionnerDelete(View):
         actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
         actionner.is_deleted = True
         actionner.save()
-        # Nobody is going to settle the disagreement of a plug that is gone.
+        # Nobody is going to settle the warnings of a plug that is gone.
         feedback.dismiss(actionner.pk)
         logger.info("L'actionneur " + actionner.name + " a été supprimé")
         response = HttpResponse(status=204)
@@ -149,9 +150,9 @@ class ActionnerDelete(View):
 
 
 def warnings_banner(request):
-    """The disagreements standing, as the main page shows them."""
+    """The warnings standing, as the main page shows them."""
     return render(request, TEMPLATES + 'partials/warnings.html',
-                  {'warnings': feedback.disagreements()})
+                  {'warnings': feedback.standing()})
 
 
 class ActionnerWarnings(View):
@@ -167,11 +168,13 @@ class ActionnerWarnings(View):
 
 
 class DismissActionnerWarning(View):
-    """« C'est réglé » : the user takes one disagreement away."""
+    """« C'est réglé » : the user takes one warning away, and that one only."""
 
-    def post(self, request, actionner_id):
+    def post(self, request, actionner_id, kind):
         actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
-        feedback.dismiss(actionner.pk)
+        if kind not in WARNING_KINDS:
+            raise Http404("Cet avertissement n'existe pas")
+        feedback.dismiss(actionner.pk, kind)
         logger.info("L'écart de l'actionneur " + actionner.name
                     + " a été réglé par l'utilisateur")
         # The whole banner comes back: settling one warning leaves the others.

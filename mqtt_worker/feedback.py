@@ -1,10 +1,13 @@
 """
-What the plugs say of themselves, and what we do when it does not match.
+What comes back from the plugs, and what we do when it belies the application.
 
-An actionner that reports on its `mqtt_topic_in` is telling us whether it is
-really on or off. When that disagrees with what the application asked of it,
-somebody has to know: the disagreement is left in the cache, the main page shows
-it, and it stays there until the user says it is settled — a plug that no longer
+A plug belies us in two ways. It reports on its `mqtt_topic_in` a state it was
+not asked for — read here, as the messages arrive. Or it takes its orders
+without anything changing on the plant, which the coherence worker finds out
+later, in the measures.
+
+Both leave a warning in the cache, one entry per plug and per kind, and the main
+page shows them until the user says each one is settled: a plug that no longer
 answers its orders is not something to notice once and forget.
 """
 import json
@@ -18,9 +21,16 @@ from plant_management.models import STATE_OFF, STATE_ON, Actionner
 
 logger = app.module_logger("actionners")
 
-# One entry per actionner, so that the pages can read them back without ever
-# listing the cache: the actionners of the database are the index.
-WARNING_KEY = 'actionner:{}:disagreement'
+# One entry per actionner and per kind, so that the pages can read them back
+# without ever listing the cache: the actionners of the database, crossed with
+# the kinds below, are the index.
+WARNING_KEY = 'actionner:{}:warning:{}'
+
+# What a plug can be warned about. It can belie the application both ways at
+# once, and each warning is raised, shown and settled on its own.
+KIND_STATE = 'state'    # it says it is in a state it was not asked for
+KIND_EFFECT = 'effect'  # what it acts on is not moving the way it should
+WARNING_KINDS = [KIND_STATE, KIND_EFFECT]
 
 # What a plug may write to say it is on, and to say it is off, whatever its case.
 ON_WORDS = {STATE_ON.lower(), 'on', 'true', 'yes', '1'}
@@ -67,56 +77,63 @@ def reported_state(actionner, payload):
     return to_state(content[label])
 
 
-# ── The disagreements the user is shown ───────────────────────
+# ── The warnings the user is shown ────────────────────────────
 
-def warning_key(actionner_id):
-    return WARNING_KEY.format(actionner_id)
+def warning_key(actionner_id, kind):
+    return WARNING_KEY.format(actionner_id, kind)
 
 
-def warn(actionner, reported):
+def warn(actionner, kind, message):
     """
-    Leaves the disagreement where the pages can read it, and journals it once.
+    Leaves the warning where the pages can read it, and journals it once.
 
-    Kept without an expiry: only the user takes it away. A disagreement already
-    standing is refreshed rather than raised again — one line in the journal per
-    plug that drifted, not one per message it sends.
+    `message` is the sentence that follows the name of the plug, both on the
+    page and in the journal. Kept without an expiry: only the user takes it
+    away. A warning already standing is refreshed rather than raised again — one
+    line in the journal per plug that drifted, not one per pass that finds it
+    still drifting.
     """
-    key = warning_key(actionner.pk)
-    standing = cache.get(key)
+    key = warning_key(actionner.pk, kind)
+    already = cache.get(key)
     warning = {
         'actionner': actionner.pk,
+        'kind': kind,
         'name': actionner.name,
-        'expected': actionner.is_on,
-        'reported': reported,
-        'since': standing['since'] if standing else timezone.now(),
+        'message': message,
+        'since': already['since'] if already else timezone.now(),
         'at': timezone.now(),
     }
     cache.set(key, warning, timeout=None)
-    if not standing:
-        logger.warning("L'actionneur " + actionner.name + " se dit "
-                       + ("allumé" if reported else "éteint") + " alors qu'il est "
-                       + ("allumé" if actionner.is_on else "éteint") + " pour l'application")
+    if not already:
+        logger.warning("L'actionneur " + actionner.name + " " + message)
     return warning
 
 
-def dismiss(actionner_id):
-    """Takes a disagreement away: the user says it is settled."""
-    cache.delete(warning_key(actionner_id))
-
-
-def disagreements():
+def dismiss(actionner_id, kind=None):
     """
-    Every disagreement standing, newest first.
+    Takes a warning away: the user says it is settled.
+
+    Without a kind, every warning of that plug goes — which is what deleting it
+    means.
+    """
+    kinds = [kind] if kind else WARNING_KINDS
+    cache.delete_many([warning_key(actionner_id, one) for one in kinds])
+
+
+def standing():
+    """
+    Every warning standing, newest first.
 
     Read against the actionners of the database rather than against the cache
     itself: a deleted actionner stops being complained about on its own.
     """
     actionners = Actionner.objects.filter(is_deleted=False)
-    keys = {warning_key(actionner.pk): actionner for actionner in actionners}
+    keys = [warning_key(actionner.pk, kind)
+            for actionner in actionners for kind in WARNING_KINDS]
     if not keys:
         return []
-    standing = cache.get_many(list(keys))
-    return sorted(standing.values(), key=lambda warning: warning['at'], reverse=True)
+    return sorted(cache.get_many(keys).values(),
+                  key=lambda warning: warning['at'], reverse=True)
 
 
 # ── What the listener does with a message ─────────────────────
@@ -146,6 +163,12 @@ def check(topic, payload):
         reported = reported_state(actionner, payload)
         if reported is None or reported == actionner.is_on:
             continue
-        warn(actionner, reported)
+        warn(actionner, KIND_STATE, belies_message(reported, actionner.is_on))
         disagreeing.append(actionner)
     return disagreeing
+
+
+def belies_message(reported, expected):
+    """How a plug reporting the wrong state reads, after its name."""
+    return ("se dit " + ("allumé" if reported else "éteint") + " alors que l'application le veut "
+            + ("allumé" if expected else "éteint"))
