@@ -23,34 +23,33 @@ def sent(monkeypatch):
 
 def test_an_actionner_switched_on_is_told_to_turn_on(actionner):
     actionner.is_on = True
-    actionner.save()
-    assert switching.orders() == [{
+    assert switching.order_for(actionner) == {
         'topic': "bonjour-plant/balcon/lampe/set",
         'payload': json.dumps({'state': "ON"}),
-    }]
+    }
 
 
 def test_an_actionner_switched_off_is_told_to_turn_off(actionner):
     assert not actionner.is_on
-    assert json.loads(switching.orders()[0]['payload']) == {'state': "OFF"}
+    assert json.loads(switching.order_for(actionner)['payload']) == {'state': "OFF"}
 
 
 def test_a_deleted_actionner_is_not_told_anything(actionner):
     actionner.is_deleted = True
     actionner.save()
-    assert switching.orders() == []
+    assert list(switching.to_be_told()) == []
 
 
 def test_an_actionner_without_a_topic_is_not_told_anything(actionner):
     actionner.mqtt_topic_out = ""
     actionner.save()
-    assert switching.orders() == []
+    assert list(switching.to_be_told()) == []
 
 
 def test_every_actionner_gets_its_own_order(actionner, db):
     Actionner.objects.create(name="Brumisateur", act_on="humidity",
                              mqtt_topic_out="bonjour-plant/serre/brumisateur/set", is_on=True)
-    orders = switching.orders()
+    orders = [switching.order_for(one) for one in switching.to_be_told()]
     assert len(orders) == 2
     assert {order['topic'] for order in orders} == {
         "bonjour-plant/balcon/lampe/set", "bonjour-plant/serre/brumisateur/set"}
@@ -61,7 +60,7 @@ def test_every_actionner_gets_its_own_order(actionner, db):
 def test_the_orders_go_to_the_broker(actionner, sent):
     assert switching.send_orders() == 1
     assert len(sent) == 1
-    assert sent[0]['messages'] == switching.orders()
+    assert sent[0]['messages'] == [switching.order_for(one) for one in switching.to_be_told()]
     assert sent[0]['options']['hostname'] == "localhost"
     assert sent[0]['options']['port'] == 1883
 

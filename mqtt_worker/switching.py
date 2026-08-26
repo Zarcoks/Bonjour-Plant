@@ -34,11 +34,6 @@ def order_for(actionner):
             'payload': json.dumps({actionner.get_state_label(): state_of(actionner)})}
 
 
-def orders():
-    """One order per actionner that has somewhere to be reached."""
-    return [order_for(actionner) for actionner in to_be_told()]
-
-
 def to_be_told():
     """The actionners that can be reached at all."""
     return Actionner.objects.filter(is_deleted=False).exclude(mqtt_topic_out="")

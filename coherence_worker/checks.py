@@ -9,33 +9,22 @@ from plant_management.models import (ACT_ON_HUMIDITY, ACT_ON_LUMINOSITY, ACT_ON_
                                      SensorData)
 from sync_worker import read_measures
 
-# Where the measure a plug acts on is written on a plant, and how it is named in
-# a sentence, article included: the interface says "humidité", a warning says
-# "l'humidité monte".
+# Where the measure a plug acts on is written on a plant, and — for the measures
+# judged on a rise — how it is named in a sentence, article included: the
+# interface says "humidité", a warning says "l'humidité monte".
 MEASURE_OF = {
     ACT_ON_HUMIDITY: 'current_humidity',
     ACT_ON_LUMINOSITY: 'current_luminosity',
     ACT_ON_TEMPERATURE: 'current_temperature',
 }
 
-MEASURE_NAMED = {
-    ACT_ON_HUMIDITY: "l'humidité",
-    ACT_ON_LUMINOSITY: "la lumière",
-    ACT_ON_TEMPERATURE: "la température",
-}
-
-# How much the measure has to move up, while the plug is off, for the rise to be
-# worth a warning. Under it the measure is only breathing: a room warms up on
-# its own, and a soil does not dry at a constant rate.
-SIGNIFICANT_RISE = {
-    ACT_ON_HUMIDITY: 5,        # points of humidity
-    ACT_ON_LUMINOSITY: 1,      # one step of the light scale
-    ACT_ON_TEMPERATURE: 1.0,   # degrees
-}
-
-# How far back the comparison reaches. A pass covers the interval it runs on:
-# the measure now, against the one taken before the plug had this long to act.
-LOOK_BACK = datetime.timedelta(minutes=5)
+# The level from which a lamp that is on shows in the measures. Light is not a
+# quantity that climbs: it is there or it is not, and a plant already in full
+# sun cannot go any higher — which is why a lamp is judged on the level reached
+# and not on a rise. Deliberately stricter than WELL_LIT_INTENSITY, which only
+# says whether a plant is in the light: here a lamp is on, so the level is
+# expected to be high and not merely normal.
+LAMP_SHOWS_AT = LUMINOSITY_LEVELS.index('high')
 
 # A measure older than this says nothing about what a plug is doing right now:
 # a sensor that stopped talking is not a plug that stopped working.
@@ -79,12 +68,31 @@ def how_it_reads(act_on, value):
     return "{} {}".format(value, "%" if act_on == ACT_ON_HUMIDITY else "°C")
 
 
+def light_drift(actionner, level):
+    """
+    What a lamp is belied by, in the level of light its plant receives.
+
+    A lamp that is on and a plant that stays in the shade contradict each other,
+    and so does a plant in full light with every lamp off. A level off the scale
+    is no judgement at all.
+    """
+    if not 0 <= level < len(LUMINOSITY_LEVELS):
+        return None
+    reads = how_it_reads(ACT_ON_LUMINOSITY, level)
+    if not actionner.is_on and level >= LAMP_SHOWS_AT:
+        return "est éteint, mais la luminosité est " + reads
+    if actionner.is_on and level < LAMP_SHOWS_AT:
+        return "est allumé, mais la luminosité reste " + reads
+    return None
+
+
 def drift_of(actionner, now=None):
     """
     What a plug is belied by, in the measures of its plant, or None when nothing.
 
     A plug that is off while what it acts on climbs, and a plug that is on while
-    it does not, are both belied. Anything in between is left alone, and so is a
+    it does not, are both belied — save for a lamp, judged on the level of light
+    reached rather than on a rise. Anything in between is left alone, and so is a
     plug we cannot judge: no plant, no sensor reporting that measure, or nothing
     to compare the last reading with.
     """
@@ -97,17 +105,11 @@ def drift_of(actionner, now=None):
     latest, value = readings_of(plant, field)
     if latest is None or latest.time < now - STALE_AFTER:
         return None
-    earlier, before = readings_of(plant, field, until=latest.time - LOOK_BACK)
-    if earlier is None:
-        return None
 
-    moved = value - before
-    reads = how_it_reads(actionner.act_on, before) + " puis " + how_it_reads(actionner.act_on, value)
-    measure = MEASURE_NAMED[actionner.act_on]
-    if not actionner.is_on and moved >= SIGNIFICANT_RISE[actionner.act_on]:
-        return "est éteint, mais " + measure + " monte quand même (" + reads + ")"
-    if actionner.is_on and moved <= 0:
-        return "est allumé, mais " + measure + " ne monte pas (" + reads + ")"
+    # A lamp is judged on the level reached, not on a rise: nothing to compare with.
+    if actionner.act_on == ACT_ON_LUMINOSITY:
+        return light_drift(actionner, value)
+
     return None
 
 

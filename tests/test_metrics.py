@@ -5,7 +5,7 @@ import json
 import pytest
 from django.urls import reverse
 
-from plant_management.models import GrowingPlant, Sensor, SensorData
+from plant_management.models import Sensor, SensorData
 from plant_management.pages.metrics.views import METRICS_DAYS
 
 

@@ -1,0 +1,41 @@
+{% comment %}
+The last photograph taken, and the button that takes the next one. The address
+carries the moment it was asked for, which is what makes the browser go and
+fetch a new picture rather than show the one it already has.
+{% endcomment %}
+{% if camera %}
+  <figure class="video-frame">
+    {% if camera.is_supported %}
+      <img src="{% url 'camera_photo' camera.pk %}?t={{ taken_at }}"
+           alt="Photo de {{ camera.name }}">
+    {% else %}
+      <div class="video-unsupported">
+        <i class="bi bi-camera-video-off"></i>
+        <p>{{ camera.model }} n'est pas un modèle pris en charge.</p>
+      </div>
+    {% endif %}
+    <figcaption>
+      <span class="camera-badge{% if camera.is_connected %} is-connected{% endif %}">
+        <span class="camera-dot"></span>
+        {% if camera.is_connected %}Connectée{% else %}Hors ligne{% endif %}
+      </span>
+      <strong>{{ camera.name }}</strong>
+      <span class="video-address">{{ camera.local_ip }}</span>
+      <span class="card-actions-spacer"></span>
+      {% if camera.is_supported %}
+        <button class="btn-plant" type="button"
+                hx-get="{% url 'video' %}?camera={{ camera.pk }}"
+                hx-target="#video-photo"
+                hx-swap="innerHTML">
+          <i class="bi bi-arrow-clockwise"></i>
+          Actualiser
+        </button>
+      {% endif %}
+    </figcaption>
+  </figure>
+{% else %}
+  <div class="empty-state video-empty">
+    <i class="bi bi-camera"></i>
+    <p>Choisissez une caméra pour voir sa dernière photo.</p>
+  </div>
+{% endif %}

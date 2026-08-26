@@ -1,0 +1,49 @@
+{% extends "plant_management/index.html" %}
+{% block content %}
+<div class="page-wrapper">
+
+  <div class="page-head">
+    <div>
+      <h1 class="page-title page-title-sm">Vidéo</h1>
+      <p class="page-subtitle">La dernière photo d'une caméra de l'installation.</p>
+    </div>
+
+    {% comment %}
+      Picking another camera swaps the picture alone. The cameras of a model we
+      cannot photograph, and those that have not answered for a while, are
+      offered greyed out rather than hidden: they are still part of the
+      installation, they simply cannot be asked for a picture.
+    {% endcomment %}
+    <form class="video-picker"
+          hx-get="{% url 'video' %}"
+          hx-target="#video-photo"
+          hx-swap="innerHTML"
+          hx-trigger="change">
+      <label for="camera-picker">
+        <i class="bi bi-camera-video"></i>
+        Caméra
+      </label>
+      <select class="form-select form-select-sm" name="camera" id="camera-picker">
+        <option value="">Choisir une caméra…</option>
+        {% for choice in cameras %}
+          <option value="{{ choice.pk }}"
+                  {% if camera and choice.pk == camera.pk %}selected{% endif %}
+                  {% if not choice.can_be_photographed %}disabled{% endif %}>
+            {{ choice.name }}
+            {% if not choice.is_supported %}
+              — modèle non pris en charge
+            {% elif not choice.answered_recently %}
+              — hors ligne
+            {% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <div id="video-photo">
+    {% include "plant_management/video/partials/photo.html" %}
+  </div>
+
+</div>
+{% endblock %}

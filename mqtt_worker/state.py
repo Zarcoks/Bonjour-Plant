@@ -51,10 +51,6 @@ def claim():
     return bool(cache.add(ALIVE_KEY, True, timeout=freshness_seconds()))
 
 
-def is_taken():
-    """Whether somebody is listening, or on their way to."""
-    return cache.get(ALIVE_KEY) is not None
-
 
 def read():
     """The subscriptions as last published, None when the worker is not talking."""

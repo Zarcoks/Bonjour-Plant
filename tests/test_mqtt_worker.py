@@ -290,5 +290,6 @@ def test_the_listening_is_let_go_by_not_being_kept_alive(queued):
 
 def test_a_synchronisation_holds_the_listening(listener, sensor, growing_plant, queued):
     listener.sync_subscriptions(FakeClient())
-    assert state.is_taken()
+    # Held, so the watchdog has nothing to start.
     assert tasks.watch_the_listening() is False
+    assert queued == []

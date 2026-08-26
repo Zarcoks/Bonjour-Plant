@@ -4,7 +4,7 @@ import datetime
 import pytest
 from django.utils import timezone
 
-from plant_management.models import GrowingPlant, Sensor, SensorData
+from plant_management.models import Sensor, SensorData
 from sync_worker import read_measures, sync_plants
 from sync_worker.tasks import sync_sensors_to_plants
 
