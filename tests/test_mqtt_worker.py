@@ -1,9 +1,8 @@
 """The MQTT worker: what it subscribes to, and what it does with what arrives."""
 import pytest
 from django.conf import settings
-from django.core.cache import cache
 
-from mqtt_worker import SensorListener, broker_from_url, state, tasks
+from mqtt_worker import SensorListener, broker_from_url, state
 from mqtt_worker.listener import MAX_PAYLOAD_LENGTH, client_id
 from plant_management.models import Sensor, SensorData
 
@@ -243,53 +242,3 @@ def test_a_worker_leaving_says_so(listener, sensor, growing_plant):
     listener.sync_subscriptions(FakeClient())
     state.forget()
     assert state.read() is None
-
-
-# --- Nobody listening any more ---
-
-@pytest.fixture
-def queued(monkeypatch):
-    """Records what the watchdog puts in the queue, without running it."""
-    calls = []
-    monkeypatch.setattr(tasks.listen_to_sensors, 'apply_async', lambda *args, **kwargs: calls.append(True))
-    return calls
-
-
-def test_the_watchdog_starts_the_listening_when_nobody_holds_it(queued):
-    assert tasks.watch_the_listening() is True
-    assert len(queued) == 1
-
-
-def test_the_watchdog_keeps_quiet_while_somebody_listens(queued):
-    state.keep_alive()
-    assert tasks.watch_the_listening() is False
-    assert queued == []
-
-
-def test_the_watchdog_keeps_quiet_while_a_listener_is_starting(listener, sensor, queued):
-    # Taken by a listener that has not published a single topic yet.
-    assert state.claim() is True
-    assert tasks.watch_the_listening() is False
-    assert queued == []
-
-
-def test_two_watchdogs_do_not_start_two_listeners(queued):
-    assert tasks.watch_the_listening() is True
-    assert tasks.watch_the_listening() is False
-    assert len(queued) == 1
-
-
-def test_the_listening_is_let_go_by_not_being_kept_alive(queued):
-    state.keep_alive()
-    assert tasks.watch_the_listening() is False
-    # What a killed process leaves behind: an entry nobody refreshes.
-    cache.delete(state.ALIVE_KEY)
-    assert tasks.watch_the_listening() is True
-    assert len(queued) == 1
-
-
-def test_a_synchronisation_holds_the_listening(listener, sensor, growing_plant, queued):
-    listener.sync_subscriptions(FakeClient())
-    # Held, so the watchdog has nothing to start.
-    assert tasks.watch_the_listening() is False
-    assert queued == []

@@ -3,6 +3,7 @@ import io
 
 import pytest
 from PIL import Image
+from paho.mqtt import publish as mqtt_publish
 
 from plant_management.models import Actionner, GrowingPlant, PlantType, Sensor
 
@@ -15,6 +16,21 @@ def local_cache(settings):
     cache.clear()
     yield cache
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def published(monkeypatch):
+    """
+    Catches what would go on the broker, without a broker.
+
+    Autouse: the interface now tells the plugs as soon as the user asks for
+    something, so any request could publish, and no test is to reach a broker.
+    """
+    calls = []
+    monkeypatch.setattr(mqtt_publish, 'multiple',
+                        lambda messages, **options: calls.append({'messages': messages,
+                                                                  'options': options}))
+    return calls
 
 
 @pytest.fixture

@@ -1,10 +1,12 @@
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from django.views import View
 
 from core.app import app
 from mqtt_worker import feedback
 from mqtt_worker.feedback import WARNING_KINDS
+from mqtt_worker.tasks import switch_the_plugs
 from plant_management.models import ACT_ON_HUMIDITY, ACT_ON_LUMINOSITY, Actionner
 
 from .forms import ActionnerForm
@@ -21,6 +23,10 @@ REFRESH_EVENT = 'refresh-actionners'
 def actionners():
     """The actionners the page shows: never the deleted ones."""
     return Actionner.objects.filter(is_deleted=False).select_related('plant')
+
+
+def card(request, actionner):
+    return render(request, TEMPLATES + 'partials/actionner_card.html', {'actionner': actionner})
 
 
 class ActionnerList(View):
@@ -42,8 +48,7 @@ class ActionnerCard(View):
     """The collapsed card of an actionner (also used to cancel an edition)."""
 
     def get(self, request, actionner_id):
-        actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
-        return render(request, TEMPLATES + 'partials/actionner_card.html', {'actionner': actionner})
+        return card(request, get_object_or_404(Actionner, pk=actionner_id, is_deleted=False))
 
 
 class ActionnerDetail(View):
@@ -56,7 +61,6 @@ class ActionnerDetail(View):
 
     def post(self, request, actionner_id):
         actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
-        was_on = actionner.is_on
         form = ActionnerForm(request.POST, request.FILES, instance=actionner)
         # Invalid input: send the edition form back, so the user keeps their changes.
         if not form.is_valid():
@@ -66,13 +70,31 @@ class ActionnerDetail(View):
         actionner = form.save()
         logger.info("L'actionneur " + actionner.name + " a été modifié, assigné à "
                     + (actionner.plant.display_name if actionner.plant else "aucune plante"))
-        if actionner.is_on != was_on:
-            logger.info("L'utilisateur veut " + ("allumer" if actionner.is_on else "éteindre")
-                        + " l'actionneur " + actionner.name)
-            hand_back_the_watering(actionner)
-        if was_on and not actionner.is_on:
+        return card(request, actionner)
+
+
+class ActionnerSwitch(View):
+    """
+    Turns an actionner on and off, from its card, without editing it.
+
+    The order leaves for the plug straight away rather than at the next pass of
+    the MQTT worker: a button that takes a minute to be followed reads as a
+    button that did nothing.
+    """
+
+    def post(self, request, actionner_id):
+        actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
+        actionner.is_on = not actionner.is_on
+        actionner.last_switch = timezone.now()
+        actionner.save(update_fields=['is_on', 'last_switch'])
+        logger.info("L'utilisateur veut " + ("allumer" if actionner.is_on else "éteindre")
+                    + " l'actionneur " + actionner.name)
+        # Touching the switch by hand is taking that factor of the plant over.
+        hand_back_the_watering(actionner)
+        if not actionner.is_on:
             hand_back_the_light(actionner)
-        return render(request, TEMPLATES + 'partials/actionner_card.html', {'actionner': actionner})
+        switch_the_plugs()
+        return card(request, actionner)
 
 
 def hand_back_the_light(actionner):

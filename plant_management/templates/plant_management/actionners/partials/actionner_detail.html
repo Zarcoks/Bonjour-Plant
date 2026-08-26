@@ -1,4 +1,7 @@
-{% comment %}Expanded card: every field, editable in place.{% endcomment %}
+{% comment %}
+Expanded card: every field, editable in place. Not its state: that one is
+switched from the collapsed card.
+{% endcomment %}
 <div class="col" id="actionner-{{ actionner.pk }}">
   <article class="plant-card is-open">
     <form hx-post="{% url 'actionner_detail' actionner.pk %}"
@@ -13,7 +16,7 @@
 
       <div class="plant-card-body">
         {% for field in form %}
-          {% if field.name != 'photo' and field.name != 'is_on' %}
+          {% if field.name != 'photo' %}
             <div class="plant-field">
               <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
               {{ field }}
@@ -21,11 +24,6 @@
             </div>
           {% endif %}
         {% endfor %}
-
-        <label class="switch-check" for="{{ form.is_on.id_for_label }}">
-          {{ form.is_on }}
-          <span><i class="bi bi-lightning-charge"></i> {{ form.is_on.label|capfirst }}</span>
-        </label>
 
         <div class="plant-field">
           <label for="{{ form.photo.id_for_label }}">

@@ -4,8 +4,8 @@ The worker listening to the installation on the MQTT broker.
 `SensorListener` holds the connection: it subscribes to the topics of the
 registered sensors and of the actionners that report their state, records what
 arrives, and keeps its subscriptions in step with the database.
-`tasks.listen_to_sensors` runs it inside a Celery worker, and starts on its own
-as soon as the worker is up.
+The `listen_sensors` command runs it, in a container of its own: an endless loop
+is not a Celery task, and Docker is the one that keeps a process alive.
 """
 from . import feedback, state, switching, watering
 from .broker import Broker, broker_from_url

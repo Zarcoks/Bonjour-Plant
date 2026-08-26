@@ -718,9 +718,10 @@ body {
   transition: color .18s ease;
 }
 
-/* ── Automatic light and watering buttons ─────────────────── */
+/* ── Switch buttons: automatic light, watering, plugs ─────── */
 .light-btn,
-.water-btn {
+.water-btn,
+.switch-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -738,9 +739,12 @@ body {
 }
 
 .light-btn:hover,
-.water-btn:hover { border-color: var(--plant-leaf); }
+.water-btn:hover,
+.switch-btn:hover { border-color: var(--plant-leaf); }
 
-.light-btn.is-on {
+/* Switched on: the button takes the colours of a plug that is live. */
+.light-btn.is-on,
+.switch-btn.is-on {
   background-color: var(--sun-light);
   border-color: var(--sun);
   color: #97710A;
@@ -756,7 +760,8 @@ body {
 }
 
 .light-state,
-.water-state {
+.water-state,
+.switch-state {
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   background-color: rgba(255,255,255,.75);
@@ -1287,40 +1292,6 @@ body {
 }
 
 .switch-when i { color: var(--gray-300); }
-
-.switch-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 4px 0 16px;
-  padding: 9px 18px;
-  border-radius: var(--radius-pill);
-  background-color: var(--gray-50);
-  border: 1px solid var(--gray-200);
-  font-size: .85rem;
-  font-weight: 500;
-  color: var(--plant-deep-green);
-  cursor: pointer;
-}
-
-/* Switched on: the control takes the colours of a plug that is live. */
-.switch-check:has(.form-check-input:checked) {
-  background-color: var(--sun-light);
-  border-color: var(--sun);
-  color: #97710A;
-}
-
-.switch-check .form-check-input {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  cursor: pointer;
-}
-
-.switch-check .form-check-input:checked {
-  background-color: var(--sun);
-  border-color: var(--sun);
-}
 
 /* ── The photo field ─────────────────────────────────────── */
 .photo-input {

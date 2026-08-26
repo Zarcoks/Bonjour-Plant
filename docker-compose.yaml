@@ -42,6 +42,25 @@ services:
       - static_data:/app/staticfiles
     expose:
       - 8000
+    # Answering means the entrypoint is past its migrations, which is what the
+    # workers wait for: they query a schema they do not migrate themselves.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
+  listener:
+    build: .
+    command: ["python", "manage.py", "listen_sensors"]
+    env_file:
+      - .env
+    depends_on:
+      django-web:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
     restart: unless-stopped
 
   celery:
@@ -50,10 +69,8 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
+      django-web:
         condition: service_healthy
-      redis:
-        condition: service_started
       mqtt:
         condition: service_started
     volumes:

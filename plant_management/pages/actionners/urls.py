@@ -10,5 +10,6 @@ urlpatterns = [
          name="dismiss_actionner_warning"),
     path("<int:actionner_id>/", views.ActionnerDetail.as_view(), name="actionner_detail"),
     path("<int:actionner_id>/card/", views.ActionnerCard.as_view(), name="actionner_card"),
+    path("<int:actionner_id>/switch/", views.ActionnerSwitch.as_view(), name="switch_actionner"),
     path("<int:actionner_id>/delete/", views.ActionnerDelete.as_view(), name="delete_actionner"),
 ]

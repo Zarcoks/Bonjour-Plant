@@ -4,7 +4,9 @@ from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
+from decision_worker import light_the_plants, water_the_plants
 from mqtt_worker import feedback
+from mqtt_worker.tasks import switch_the_plugs
 from plant_management.models import GrowingPlant
 
 from .forms import GrowingPlantCreateForm, GrowingPlantForm
@@ -36,6 +38,20 @@ def asks_for_harvested(request):
 
 def card(request, plant):
     return render(request, TEMPLATES + 'partials/growing_plant_card.html', {'plant': plant})
+
+
+def take_the_decision_now(decide):
+    """
+    Runs a decision straight away, and tells the plugs what it decided.
+
+    Leaving an automation to the next pass of the workers would show the user a
+    button that did nothing for a minute: switching it on is asking for what it
+    decides, now.
+    """
+    summary = decide()
+    if summary['switched_on'] or summary['switched_off']:
+        switch_the_plugs()
+    return summary
 
 
 class GrowingPlantList(View):
@@ -143,6 +159,10 @@ class GrowingPlantAutoLuminosity(View):
         plant.save()
         logger.info("La lumière automatique de la plante " + plant.display_name + " a été "
                     + ("activée" if plant.auto_luminosity else "désactivée"))
+        # Only on the way up: a plant taken off automatic light is left as it is,
+        # and the decision would not look at it any more anyway.
+        if plant.auto_luminosity:
+            take_the_decision_now(light_the_plants)
         return card(request, plant)
 
 
@@ -155,4 +175,7 @@ class GrowingPlantAutoWatering(View):
         plant.save()
         logger.info("L'arrosage automatique de la plante " + plant.display_name + " a été "
                     + ("activé" if plant.auto_watering else "désactivé"))
+        # Same as the light: what the decision wants happens now, not in a minute.
+        if plant.auto_watering:
+            take_the_decision_now(water_the_plants)
         return card(request, plant)

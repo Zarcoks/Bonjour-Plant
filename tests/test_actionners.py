@@ -1,11 +1,13 @@
 """The actionners: connected plugs playing on one factor of a plant."""
 import datetime
+import json
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
+from mqtt_worker import switching
 from plant_management.models import Actionner, AppLog
 
 
@@ -34,8 +36,10 @@ def test_detail_returns_the_edition_form(client, actionner):
     assert response.status_code == 200
     content = response.content.decode()
     for field in ['name="name"', 'name="act_on"', 'name="mqtt_topic_out"', 'name="mqtt_topic_in"',
-                  'name="state_payload_label"', 'name="plant"', 'name="is_on"', 'name="photo"']:
+                  'name="state_payload_label"', 'name="plant"', 'name="photo"']:
         assert field in content
+    # The plug is switched from its card: editing it is not how it is turned on.
+    assert 'name="is_on"' not in content
     assert "Valider" in content and "Annuler" in content and "Supprimer" in content
 
 
@@ -76,36 +80,81 @@ def test_what_it_acts_on_is_one_of_the_measures(client, actionner, actionner_pay
     assert b'name="act_on"' in response.content
 
 
-# --- Switching it on and off ---
+# --- Switching it on and off, from the card ---
 
-def test_switching_it_on_notes_the_moment(client, actionner, actionner_payload):
+def press(client, actionner):
+    """Presses the button of the card: the plug goes the other way."""
+    return client.post(reverse("switch_actionner", kwargs={"actionner_id": actionner.pk}))
+
+
+def test_the_card_carries_the_switch_button(client, actionner):
+    content = client.get(reverse("actionner_card", kwargs={"actionner_id": actionner.pk})).content.decode()
+    assert reverse("switch_actionner", kwargs={"actionner_id": actionner.pk}) in content
+    assert "éteinte" in content
+
+
+def test_switching_it_on_notes_the_moment(client, actionner):
     assert actionner.last_switch is None
-    client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}),
-                dict(actionner_payload, is_on="on"))
+    response = press(client, actionner)
+    assert response.status_code == 200
     actionner.refresh_from_db()
     assert actionner.is_on
     assert actionner.last_switch.date() == timezone.now().date()
+    # The card comes back, switched on, and not the edition form.
+    assert "allumée" in response.content.decode()
+    assert b'name="mqtt_topic_out"' not in response.content
     assert AppLog.objects.filter(type="INFO", message__contains="veut allumer").count() == 1
 
 
-def test_switching_it_off_notes_the_moment_too(client, actionner, actionner_payload):
+def test_switching_it_off_notes_the_moment_too(client, actionner):
     actionner.is_on = True
     actionner.last_switch = timezone.now() - datetime.timedelta(days=2)
     actionner.save()
     switched_before = actionner.last_switch
-    client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}), actionner_payload)
+    press(client, actionner)
     actionner.refresh_from_db()
     assert not actionner.is_on
     assert actionner.last_switch > switched_before
     assert AppLog.objects.filter(type="INFO", message__contains="veut éteindre").count() == 1
 
 
-def test_a_change_that_is_not_a_switch_leaves_the_moment_alone(client, actionner, actionner_payload):
+def test_switching_it_tells_the_plug_at_once(client, actionner, published):
+    press(client, actionner)
+    # No waiting for the next pass of the MQTT worker: the order is already out.
+    assert len(published) == 1
+    assert published[0]['messages'] == [{'topic': "bonjour-plant/balcon/lampe/set",
+                                        'payload': json.dumps({'state': "ON"})}]
+    assert AppLog.objects.filter(type="INFO",
+                                 message__contains="Instruction MQTT envoyée").count() == 1
+
+
+def test_a_broker_that_cannot_be_reached_still_switches_it(client, actionner, monkeypatch):
+    def refuse(messages, **options):
+        raise OSError("Connection refused")
+
+    monkeypatch.setattr(switching.mqtt_publish, 'multiple', refuse)
+    assert press(client, actionner).status_code == 200
+    actionner.refresh_from_db()
+    assert actionner.is_on
+    assert AppLog.objects.filter(type="ERROR").count() == 1
+
+
+def test_a_deleted_actionner_cannot_be_switched(client, actionner):
+    actionner.is_deleted = True
+    actionner.save()
+    assert press(client, actionner).status_code == 404
+
+
+def test_editing_it_leaves_its_state_alone(client, actionner, actionner_payload):
+    actionner.is_on = True
     actionner.last_switch = timezone.now() - datetime.timedelta(days=2)
     actionner.save()
     untouched = actionner.last_switch
-    client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}), actionner_payload)
+    client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}),
+                dict(actionner_payload, is_on=""))
     actionner.refresh_from_db()
+    # The state is not one of the fields of the form: nothing of it is read.
+    assert actionner.is_on
     assert actionner.last_switch == untouched
 
 
@@ -165,11 +214,12 @@ def test_create(client, db, actionner_payload):
     assert AppLog.objects.filter(type="INFO", message__contains="a été créé").count() == 1
 
 
-def test_create_switched_on_notes_the_moment(client, db, actionner_payload):
+def test_a_new_actionner_starts_switched_off(client, db, actionner_payload):
     client.post(reverse("create_actionner"), dict(actionner_payload, is_on="on"))
     created = Actionner.objects.get(name="Humidificateur de la serre")
-    assert created.is_on
-    assert created.last_switch is not None
+    # A plug is switched from its card, never on the way in.
+    assert not created.is_on
+    assert created.last_switch is None
 
 
 def test_create_with_invalid_input_is_retargeted_to_the_form(client, db, actionner_payload):
@@ -233,6 +283,12 @@ def lamp_of(growing_plant, db):
                                     mqtt_topic_out="bonjour-plant/balcon/lampe/set", is_on=True)
 
 
+def edit(client, actionner, **changes):
+    """Sends the edition form back for that actionner, changed as said."""
+    return client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}),
+                       payload_of(actionner, **changes))
+
+
 def payload_of(actionner, **changes):
     """What the form sends back for that actionner, unchanged unless said otherwise."""
     fields = {
@@ -246,13 +302,8 @@ def payload_of(actionner, **changes):
     return dict(fields, **changes)
 
 
-def switch(client, actionner, **changes):
-    return client.post(reverse("actionner_detail", kwargs={"actionner_id": actionner.pk}),
-                       payload_of(actionner, **changes))
-
-
 def test_switching_a_light_off_stops_the_automatic_light(client, lamp_of, growing_plant):
-    switch(client, lamp_of)          # the box left unticked switches it off
+    press(client, lamp_of)
     growing_plant.refresh_from_db()
     assert not growing_plant.auto_luminosity
     assert AppLog.objects.filter(type="INFO",
@@ -262,7 +313,7 @@ def test_switching_a_light_off_stops_the_automatic_light(client, lamp_of, growin
 def test_switching_a_light_on_leaves_the_automatic_light_alone(client, lamp_of, growing_plant):
     lamp_of.is_on = False
     lamp_of.save()
-    switch(client, lamp_of, is_on="on")
+    press(client, lamp_of)
     growing_plant.refresh_from_db()
     # Only switching off hands the light back: switching on is not asked to.
     assert growing_plant.auto_luminosity
@@ -273,7 +324,7 @@ def test_switching_off_something_that_is_not_a_light_leaves_it_alone(client, gro
     growing_plant.save()
     humidifier = Actionner.objects.create(name="Brumisateur", act_on="humidity", plant=growing_plant,
                                           mqtt_topic_out="bonjour-plant/serre/brumisateur/set", is_on=True)
-    switch(client, humidifier)
+    press(client, humidifier)
     growing_plant.refresh_from_db()
     assert growing_plant.auto_luminosity
 
@@ -282,7 +333,7 @@ def test_a_light_of_no_plant_hands_nothing_back(client, actionner):
     actionner.is_on = True
     actionner.save()
     assert actionner.plant is None
-    switch(client, actionner)
+    press(client, actionner)
     actionner.refresh_from_db()
     assert not actionner.is_on
 
@@ -290,12 +341,12 @@ def test_a_light_of_no_plant_hands_nothing_back(client, actionner):
 def test_a_plant_already_on_manual_light_is_not_written_again(client, lamp_of, growing_plant):
     growing_plant.auto_luminosity = False
     growing_plant.save()
-    switch(client, lamp_of)
+    press(client, lamp_of)
     assert not AppLog.objects.filter(message__contains="lumière automatique de la plante").exists()
 
 
-def test_a_change_that_is_not_a_switch_leaves_the_automatic_light_alone(client, lamp_of, growing_plant):
-    switch(client, lamp_of, name="Lampe UV du balcon", is_on="on")
+def test_editing_a_lamp_leaves_the_automatic_light_alone(client, lamp_of, growing_plant):
+    edit(client, lamp_of, name="Lampe UV du balcon")
     growing_plant.refresh_from_db()
     assert growing_plant.auto_luminosity
 
@@ -312,7 +363,7 @@ def pump_of(growing_plant, db):
 
 
 def test_switching_a_pump_off_stops_the_automatic_watering(client, pump_of, growing_plant):
-    switch(client, pump_of)          # the box left unticked switches it off
+    press(client, pump_of)
     growing_plant.refresh_from_db()
     assert not growing_plant.auto_watering
     assert AppLog.objects.filter(type="INFO",
@@ -322,7 +373,7 @@ def test_switching_a_pump_off_stops_the_automatic_watering(client, pump_of, grow
 def test_switching_a_pump_on_stops_the_automatic_watering_too(client, pump_of, growing_plant):
     pump_of.is_on = False
     pump_of.save()
-    switch(client, pump_of, is_on="on")
+    press(client, pump_of)
     growing_plant.refresh_from_db()
     # Touching the switch either way is taking the water of the plant over.
     assert not growing_plant.auto_watering
@@ -331,7 +382,7 @@ def test_switching_a_pump_on_stops_the_automatic_watering_too(client, pump_of, g
 def test_switching_something_that_is_not_a_pump_leaves_the_watering_alone(client, lamp_of, growing_plant):
     growing_plant.auto_watering = True
     growing_plant.save()
-    switch(client, lamp_of)
+    press(client, lamp_of)
     growing_plant.refresh_from_db()
     assert growing_plant.auto_watering
 
@@ -341,7 +392,7 @@ def test_a_pump_of_no_plant_hands_nothing_back(client, actionner):
     actionner.is_on = True
     actionner.save()
     assert actionner.plant is None
-    switch(client, actionner)
+    press(client, actionner)
     actionner.refresh_from_db()
     assert not actionner.is_on
 
@@ -349,11 +400,11 @@ def test_a_pump_of_no_plant_hands_nothing_back(client, actionner):
 def test_a_plant_already_watered_by_hand_is_not_written_again(client, pump_of, growing_plant):
     growing_plant.auto_watering = False
     growing_plant.save()
-    switch(client, pump_of)
+    press(client, pump_of)
     assert not AppLog.objects.filter(message__contains="arrosage automatique de la plante").exists()
 
 
-def test_a_change_that_is_not_a_switch_leaves_the_automatic_watering_alone(client, pump_of, growing_plant):
-    switch(client, pump_of, name="Pompe du balcon", is_on="on")
+def test_editing_a_pump_leaves_the_automatic_watering_alone(client, pump_of, growing_plant):
+    edit(client, pump_of, name="Pompe du balcon")
     growing_plant.refresh_from_db()
     assert growing_plant.auto_watering

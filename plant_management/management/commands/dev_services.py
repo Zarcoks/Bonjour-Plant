@@ -78,7 +78,7 @@ class Command(BaseCommand):
             for service in SERVICES:
                 if self.start(service):
                     started.append(service)
-            self.run_celery()
+            self.run_workers()
         except KeyboardInterrupt:
             pass
         finally:
@@ -131,17 +131,15 @@ class Command(BaseCommand):
             self.say("Arrêt de {}...".format(service['name']))
             subprocess.run(["docker", "stop", service['container']], capture_output=True)
 
-    # ── Celery ────────────────────────────────────────────────
+    # ── The two processes of a development run ────────────────
 
     def stop_worker(self, worker):
         """
-        Asks the worker to leave, then insists.
+        Asks a process to leave, then insists.
 
         Signals reach the whole group: Celery runs a pool of children, and
         signalling the parent alone would leave them behind. The first
-        interruption asks for a warm shutdown, which waits for the running
-        tasks — and the listening task never ends on its own, hence the second
-        one, which Celery reads as a cold shutdown.
+        interruption asks Celery for a warm shutdown, the second for a cold one.
         """
         group = os.getpgid(worker.pid)
         for delay in (WARM_SHUTDOWN_SECONDS, COLD_SHUTDOWN_SECONDS):
@@ -155,26 +153,33 @@ class Command(BaseCommand):
         os.killpg(group, signal.SIGKILL)
         worker.wait()
 
-    def run_celery(self):
-        """
-        Runs the worker in the foreground, until interrupted.
-
-        The worker starts the MQTT listening on its own, so a development run
-        listens to the sensors like the deployed one.
-        """
-        self.say("\nLe worker Celery démarre. Lancez `python manage.py runserver` à côté, "
-                 "et Ctrl-C ici pour tout arrêter.\n", style=self.style.MIGRATE_HEADING)
-        worker = subprocess.Popen(
-            [sys.executable, "-m", "celery", "-A", "core", "worker", "--beat", "-l", "INFO",
-             "--concurrency", "2"],
+    def spawn(self, command):
+        """Starts one of the two processes, in a group of its own."""
+        return subprocess.Popen(
+            command,
             env=dict(os.environ,
                      REDIS_URL="redis://{}:6379/0".format(HOST),
                      MQTT_BROKER_URL="mqtt://{}:1883".format(HOST)),
-            # Its own group, so that the whole pool can be signalled at once.
+            # Its own group, so that a whole pool can be signalled at once.
             start_new_session=True,
         )
+
+    def run_workers(self):
+        """
+        Runs the listening and the Celery worker side by side, until interrupted.
+
+        Two processes, as in the deployment: the listening holds a connection for
+        as long as it lives, which is no work for a task pool.
+        """
+        self.say("\nL'écoute MQTT et le worker Celery démarrent. Lancez "
+                 "`python manage.py runserver` à côté, et Ctrl-C ici pour tout arrêter.\n",
+                 style=self.style.MIGRATE_HEADING)
+        listener = self.spawn([sys.executable, "manage.py", "listen_sensors"])
+        worker = self.spawn([sys.executable, "-m", "celery", "-A", "core", "worker", "--beat",
+                             "-l", "INFO", "--concurrency", "2"])
         try:
             worker.wait()
         except KeyboardInterrupt:
             self.stop_worker(worker)
+            self.stop_worker(listener)
             raise

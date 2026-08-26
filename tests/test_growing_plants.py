@@ -246,7 +246,8 @@ def test_auto_luminosity_is_toggled(client, growing_plant):
     client.post(url)
     growing_plant.refresh_from_db()
     assert growing_plant.auto_luminosity
-    assert AppLog.objects.filter(message__contains="lumière automatique").count() == 2
+    assert AppLog.objects.filter(
+        message__contains="lumière automatique de la plante").count() == 2
 
 
 def test_the_watering_button_only_shows_with_something_to_water_with(client, growing_plant):
@@ -273,7 +274,73 @@ def test_auto_watering_is_toggled(client, growing_plant):
     client.post(url)
     growing_plant.refresh_from_db()
     assert not growing_plant.auto_watering
-    assert AppLog.objects.filter(message__contains="arrosage automatique").count() == 2
+    assert AppLog.objects.filter(
+        message__contains="arrosage automatique de la plante").count() == 2
+
+
+# --- An automation switched on is acted on at once ---
+
+def lamp_of(plant):
+    return Actionner.objects.create(name="Lampe UV", act_on="luminosity", plant=plant,
+                                    mqtt_topic_out="bonjour-plant/balcon/lampe/set")
+
+
+def pump_of(plant):
+    return Actionner.objects.create(name="Pompe", act_on="humidity", plant=plant,
+                                    mqtt_topic_out="bonjour-plant/balcon/pompe/set")
+
+
+def test_activating_the_automatic_light_lights_the_plant_at_once(client, growing_plant, plant_type,
+                                                                published):
+    # A window covering the whole day: the decision is then the same at any hour.
+    plant_type.light_starts_at = datetime.time(0, 0)
+    plant_type.light_ends_at = datetime.time(23, 59)
+    plant_type.save()
+    growing_plant.auto_luminosity = False
+    growing_plant.save()
+    lamp = lamp_of(growing_plant)
+
+    client.post(reverse("growing_plant_auto_luminosity", kwargs={"plant_id": growing_plant.pk}))
+    lamp.refresh_from_db()
+    # Neither the decision worker nor the MQTT one is waited for.
+    assert lamp.is_on
+    assert len(published) == 1
+    assert AppLog.objects.filter(message__contains="Lumière automatique :").count() == 1
+
+
+def test_activating_the_automatic_watering_waters_the_plant_at_once(client, growing_plant, published):
+    # Drier than what its species is kept at: the pump is wanted.
+    growing_plant.current_humidity = 40
+    growing_plant.save()
+    pump = pump_of(growing_plant)
+
+    client.post(reverse("growing_plant_auto_watering", kwargs={"plant_id": growing_plant.pk}))
+    pump.refresh_from_db()
+    assert pump.is_on
+    assert len(published) == 1
+    assert AppLog.objects.filter(message__contains="Arrosage automatique :").count() == 1
+
+
+def test_an_automation_that_decides_nothing_says_nothing_to_the_plugs(client, growing_plant,
+                                                                     published):
+    # Damp enough already: switching the watering on changes nothing right now.
+    assert growing_plant.current_humidity == 72
+    pump_of(growing_plant)
+    client.post(reverse("growing_plant_auto_watering", kwargs={"plant_id": growing_plant.pk}))
+    assert published == []
+
+
+def test_taking_a_plant_off_an_automation_decides_nothing(client, growing_plant, published):
+    lamp = lamp_of(growing_plant)
+    lamp.is_on = True
+    lamp.save()
+    assert growing_plant.auto_luminosity
+
+    client.post(reverse("growing_plant_auto_luminosity", kwargs={"plant_id": growing_plant.pk}))
+    lamp.refresh_from_db()
+    # The lamp is left as it is: the user has just taken its light over.
+    assert lamp.is_on
+    assert published == []
 
 
 def test_a_deleted_plant_cannot_be_reached(client, growing_plant):

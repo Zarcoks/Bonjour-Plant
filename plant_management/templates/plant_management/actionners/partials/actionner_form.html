@@ -1,4 +1,7 @@
-{% comment %}Creation form, loaded above the card grid.{% endcomment %}
+{% comment %}
+Creation form, loaded above the card grid. An actionner is created switched off:
+it is turned on from its card afterwards.
+{% endcomment %}
 <div class="plant-form-card">
   <form hx-post="{% url 'create_actionner' %}"
         hx-target="#actionner-grid"
@@ -13,20 +16,13 @@
 
     <div class="plant-field-grid plant-field-grid-wide">
       {% for field in form %}
-        {% if field.name != 'is_on' %}
-          <div class="plant-field {% if field.name == 'photo' %}plant-field-full{% endif %}">
-            <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
-            {{ field }}
-            {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
-          </div>
-        {% endif %}
+        <div class="plant-field {% if field.name == 'photo' %}plant-field-full{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+          {{ field }}
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
       {% endfor %}
     </div>
-
-    <label class="switch-check" for="{{ form.is_on.id_for_label }}">
-      {{ form.is_on }}
-      <span><i class="bi bi-lightning-charge"></i> {{ form.is_on.label|capfirst }}</span>
-    </label>
 
     {% if form.non_field_errors %}
       <div class="field-error">{{ form.non_field_errors }}</div>

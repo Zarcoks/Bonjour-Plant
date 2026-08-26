@@ -133,7 +133,13 @@ class SensorListener:
         logger.info("Connecté au broker MQTT " + str(self.broker))
         # A fresh connection carries no subscription: everything is taken again.
         self.subscribed = set()
-        self.sync_subscriptions(client)
+        try:
+            self.sync_subscriptions(client)
+        except Exception as error:
+            # Raising here would kill the network thread, leaving a listener that
+            # is up and hears nothing. The loop tries again in a few seconds.
+            logger.error("Abonnements non pris à la connexion : " + str(error))
+            self.subscribed = set()
 
     def on_disconnect(self, client, userdata, flags, reason_code, properties=None):
         logger.warning("Déconnecté du broker MQTT " + str(self.broker) + " : " + str(reason_code))

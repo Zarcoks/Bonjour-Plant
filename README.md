@@ -45,7 +45,8 @@ Trois services :
 | --- | --- |
 | `caddy` | publie le port 80, sert `/static/` et `/media/`, proxifie le reste vers gunicorn |
 | `django-web` | l'application derrière gunicorn, sur le port 8000 interne |
-| `celery` | les workers : écoute MQTT, synchronisation, décisions automatiques |
+| `listener` | l'écoute MQTT, un processus à elle seule |
+| `celery` | les tâches planifiées : synchronisation, ordres, décisions, cohérence |
 | `redis` | le courtier de messages de Celery, et le cache de l'application |
 | `mqtt` | un broker Mosquitto de développement, sur le port 1883 |
 | `db` | PostgreSQL 17 |
@@ -145,6 +146,7 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/actionners/<id>/warnings/<genre>/dismiss/` | `dismiss_actionner_warning` | POST : « c'est réglé », cet écart-là est retiré |
 | `/actionners/<id>/` | `actionner_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/actionners/<id>/card/` | `actionner_card` | carte repliée (sert aussi de « Annuler ») |
+| `/actionners/<id>/switch/` | `switch_actionner` | POST : bascule la prise, et l'ordre part aussitôt |
 | `/actionners/<id>/delete/` | `delete_actionner` | POST : suppression, après confirmation |
 | `/logs/` | `logs` | le journal de l'application, filtrable |
 | `/logs/topics/` | `mqtt_topics` | les topics MQTT écoutés en ce moment |
@@ -242,9 +244,14 @@ suppression après confirmation.
 
 Il porte son nom, sa photo, son état (`is_on`), la plante à laquelle il est
 assigné ou non, et le facteur sur lequel il agit (`act_on` : humidité, lumière ou
-température, les mêmes noms que les mesures). `last_switch` est daté par le
-formulaire, et seulement quand l'état change vraiment : modifier le nom ne compte
-pas comme une bascule.
+température, les mêmes noms que les mesures).
+
+Son état ne fait **pas** partie du formulaire : il se bascule depuis un bouton de
+la carte, comme la lumière et l'arrosage automatiques d'une plante. Le bouton
+« Alimentation » poste sur `switch_actionner`, qui inverse `is_on`, date
+`last_switch` et renvoie la carte ; modifier l'actionneur ne touche donc jamais à
+son état, et une prise créée l'est toujours éteinte. Le clic est *consommé*
+(`hx-trigger="click consume"`) pour ne pas déplier la carte au passage.
 
 Il porte surtout **deux topics, un par sens** : `mqtt_topic_out`, sur lequel
 partent les ordres de bascule, et `mqtt_topic_in`, sur lequel la prise raconte ce
@@ -277,8 +284,14 @@ partent par un client MQTT le temps d'une publication, indépendant de celui qui
 écoute les capteurs. Un broker injoignable est signalé dans le journal, sans
 plus : le passage suivant est à une minute.
 
+Le passage suivant n'est cependant pas attendu quand c'est l'utilisateur qui
+demande quelque chose : le bouton d'un actionneur appelle `switch_the_plugs` dans
+la requête même, juste après avoir écrit l'état voulu. La prise suit donc au clic
+plutôt qu'à la minute. La tâche avale les erreurs du broker : une publication qui
+échoue laisse une ligne dans le journal et la page répond quand même.
+
 Le journal garde les deux versants d'une bascule : ce que l'utilisateur a
-demandé (« L'utilisateur veut allumer l'actionneur … », écrit par le formulaire)
+demandé (« L'utilisateur veut allumer l'actionneur … », écrit par le bouton)
 et l'instruction partie sur le broker (« Instruction MQTT envoyée … : ON sur
 … »). L'instruction n'est écrite que lorsqu'elle change : l'ordre part à chaque
 passage, mais une ligne par prise et par minute enterrerait tout le reste du
@@ -329,14 +342,14 @@ Le paquet `mqtt_worker/` écoute l'installation. L'adresse du broker vient de
 éventuels), les topics viennent du champ `mqtt_topic` des capteurs et du
 `mqtt_topic_in` des actionneurs qui rapportent leur état.
 
-Le worker démarre **tout seul** : le signal Celery `worker_ready` met la tâche
-`mqtt_worker.listen_to_sensors` en file dès que le worker est prêt, sans rien à
-lancer à la main. La tâche garde la connexion aussi longtemps que le worker
-vit ; si elle tombe, elle est remise en file.
+L'écoute tourne dans **son propre conteneur** (`listener`), lancé par
+`manage.py listen_sensors`, et non dans une tâche Celery : une boucle infinie
+n'est pas une tâche, et Docker sait déjà surveiller un processus. Un plantage est
+donc rattrapé par `restart: unless-stopped`, sans surveillance à écrire.
 
-Toutes les `MQTT_SYNC_SECONDS` (30 s par défaut), le worker relit les appareils
-et met ses abonnements à jour : un appareil ajouté est écouté, un appareil
-supprimé ou dont le topic change voit son ancien topic abandonné. Une
+Toutes les `MQTT_SYNC_SECONDS` (30 s par défaut), l'écoute relit la table des
+capteurs et met ses abonnements à jour : un capteur ajouté est écouté, un
+capteur supprimé ou dont le topic change voit son ancien topic abandonné. Une
 reconnexion au broker reprend tous les abonnements, puisqu'une nouvelle session
 MQTT n'en porte aucun.
 
@@ -377,22 +390,12 @@ descend est un sol qui sèche, l'inverse d'un arrosage. La comparaison se fait
 capteur par capteur et plante par plante, et lit chaque payload avec les clés du
 capteur qui l'a envoyé.
 
-### Quand plus personne n'écoute
+### L'ordre de démarrage
 
-`worker_ready` ne part qu'au démarrage d'un worker, et le message est acquitté
-dès qu'un enfant du pool le prend : un enfant tué emporte l'écoute avec lui, et
-rien ne la ramènerait. La tâche `mqtt_worker.watch_the_listening`, planifiée
-toutes les `MQTT_WATCH_SECONDS` (60 s par défaut), s'en charge — elle remet
-l'écoute en file dès que plus personne ne la tient.
-
-Le « qui la tient » est une réservation en cache prise atomiquement
-(`cache.add`), séparée des abonnements : un listener qui démarre, ou qui
-réessaie sur un broker muet, tient l'écoute sans avoir encore un seul topic à
-montrer. Sans cette distinction, la surveillance empilerait une écoute par
-minute pendant une panne de broker, et toutes se réveilleraient ensemble en
-enregistrant chaque mesure en double. Personne ne rend jamais la réservation :
-elle se perd en n'étant plus rafraîchie, ce qui est exactement ce que fait un
-processus tué.
+`listener` et `celery` attendent que `django-web` réponde, car c'est ce qui
+signale que son `entrypoint.sh` a fini d'appliquer les migrations : ces deux
+services interrogent un schéma qu'ils ne migrent pas eux-mêmes. Sans cette
+attente, l'écoute part sur une colonne qui n'existe pas encore.
 
 Un Redis injoignable ne casse rien : le cache est configuré en
 `IGNORE_EXCEPTIONS`, les pages restent servies, et le panneau dit simplement
@@ -463,9 +466,9 @@ de plante, les actionneurs de la plante qui agissent sur la lumière sont allum�
 en dehors, ils sont éteints. Une plante dont la lumière automatique est
 désactivée n'est pas touchée du tout — elle est à la main de quelqu'un d'autre.
 
-Éteindre une lampe à la main, depuis les paramètres de l'actionneur, **fait
-passer sa plante en lumière manuelle** (`auto_luminosity` à faux) : sans cela, la
-décision la rallumerait dans la minute et l'interrupteur paraîtrait cassé. Le
+Éteindre une lampe à la main, depuis le bouton de sa carte, **fait passer sa
+plante en lumière manuelle** (`auto_luminosity` à faux) : sans cela, la décision
+la rallumerait dans la minute et l'interrupteur paraîtrait cassé. Le
 bouton « Lumière automatique » d'une plante n'apparaît d'ailleurs que si quelque
 chose peut l'éclairer.
 
@@ -481,9 +484,9 @@ qui n'a pas soif — on ne laisse rien tourner sur une mesure qu'on n'a pas.
 L'arrosage automatique se règle comme la lumière : le bouton « Arrosage
 automatique » de la carte bascule `auto_watering`, et n'apparaît que si la plante
 a un actionneur qui agit sur l'humidité. Basculer l'interrupteur d'une pompe à la
-main, depuis les paramètres de l'actionneur — pour l'allumer comme pour
-l'éteindre — **fait passer sa plante en arrosage manuel** (`auto_watering` à
-faux) : toucher l'interrupteur, c'est reprendre l'eau de cette plante en main.
+main, depuis le bouton de sa carte — pour l'allumer comme pour l'éteindre —
+**fait passer sa plante en arrosage manuel** (`auto_watering` à faux) : toucher
+l'interrupteur, c'est reprendre l'eau de cette plante en main.
 
 Les deux décisions basculent les prises par le même `decision_worker.plugs.switch`,
 qui n'écrit que si l'état voulu a changé et signe sa ligne du nom de la décision
@@ -494,6 +497,21 @@ tour, dit aux prises l'état voulu. La bascule est donc datée tout de suite
 (`last_switch`) et atteint la prise au passage suivant, dans la minute. Chaque
 bascule laisse une ligne dans le journal, et une décision qui ne change rien n'en
 laisse aucune.
+
+### Une automatisation activée est appliquée tout de suite
+
+Les deux décisions tournent aussi **à la demande**, en dehors de leur horaire :
+activer la lumière automatique d'une plante lance `light_the_plants` dans la
+requête, activer son arrosage automatique lance `water_the_plants`, et si la
+décision a basculé quelque chose, `switch_the_plugs` part derrière. La lampe
+s'allume donc au clic, et non au prochain passage du worker — un bouton qui ne
+fait rien pendant une minute passe pour un bouton cassé.
+
+C'est `take_the_decision_now` (dans les vues des plantes) qui enchaîne les deux,
+et seulement dans le sens de l'activation : désactiver une automatisation ne
+décide rien, puisque la décision cesse justement de regarder cette plante.
+L'horaire reste en place pour la suite : le lancement à la demande ne remplace
+rien, il évite l'attente.
 
 ## La cohérence de l'installation
 
