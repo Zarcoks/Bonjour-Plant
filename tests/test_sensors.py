@@ -1,3 +1,4 @@
+import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
@@ -189,6 +190,7 @@ def test_a_new_sensor_names_its_measures_the_usual_way(client, db, sensor_payloa
     assert created.humidity_payload_label == "humidity"
     assert created.luminosity_payload_label == "luminosity"
     assert created.temperature_payload_label == "temperature"
+    assert created.battery_payload_label == "battery"
 
 
 def test_the_labels_can_be_chosen_at_creation(client, db, sensor_payload):
@@ -200,7 +202,7 @@ def test_the_labels_are_shown_in_both_forms(client, sensor):
     for url in [reverse("create_sensor"), reverse("sensor_detail", kwargs={"sensor_id": sensor.pk})]:
         content = client.get(url).content.decode()
         for field in ['name="humidity_payload_label"', 'name="luminosity_payload_label"',
-                      'name="temperature_payload_label"']:
+                      'name="temperature_payload_label"', 'name="battery_payload_label"']:
             assert field in content
         assert "clé du payload" in content
 
@@ -227,13 +229,62 @@ def test_a_label_left_empty_goes_back_to_the_usual_name(client, sensor, sensor_p
 def test_a_label_emptied_outside_the_interface_still_reads(db):
     sensor = Sensor.objects.create(name="Sonde muette", model="Test", mqtt_topic="test",
                                    humidity_payload_label="", luminosity_payload_label="",
-                                   temperature_payload_label="")
+                                   temperature_payload_label="", battery_payload_label="")
     assert sensor.get_humidity_label() == "humidity"
     assert sensor.get_luminosity_label() == "luminosity"
     assert sensor.get_temperature_label() == "temperature"
+    assert sensor.get_battery_label() == "battery"
 
 
 def test_a_chosen_label_is_the_one_read(db):
     sensor = Sensor.objects.create(name="Luxmètre", model="Test", mqtt_topic="test",
                                    luminosity_payload_label="lux")
     assert sensor.get_luminosity_label() == "lux"
+
+
+def test_the_battery_label_can_be_edited(client, sensor, sensor_payload):
+    response = client.post(reverse("sensor_detail", kwargs={"sensor_id": sensor.pk}),
+                           dict(sensor_payload, battery_payload_label="battery_level"))
+    assert response.status_code == 200
+    sensor.refresh_from_db()
+    assert sensor.battery_payload_label == "battery_level"
+
+
+def test_the_battery_label_left_empty_goes_back_to_the_usual_name(client, sensor, sensor_payload):
+    sensor.battery_payload_label = "battery_level"
+    sensor.save()
+    client.post(reverse("sensor_detail", kwargs={"sensor_id": sensor.pk}),
+                dict(sensor_payload, battery_payload_label=""))
+    sensor.refresh_from_db()
+    assert sensor.battery_payload_label == "battery"
+
+
+# --- The batteries on the card ---
+
+def test_the_card_says_so_when_the_sensor_never_reported_its_charge(client, sensor):
+    assert sensor.battery_level is None
+    content = client.get(reverse("sensors")).content.decode()
+    assert "Batterie inconnue" in content
+
+
+@pytest.mark.parametrize("level", [100, 84, 42, 7, 0])
+def test_the_card_shows_the_charge_the_sensor_reported(client, sensor, level):
+    sensor.battery_level = level
+    sensor.save()
+    # The percentage as it was reported: the card reads nothing into it.
+    assert "Batterie {} %".format(level) in client.get(reverse("sensors")).content.decode()
+
+
+def test_the_card_of_a_sensor_running_low_stands_out(client, sensor):
+    sensor.battery_level = 7
+    sensor.save()
+    assert 'class="sensor-battery is-low"' in client.get(reverse("sensors")).content.decode()
+
+
+@pytest.mark.parametrize("level, low", [(11, False), (10, False), (9, True), (0, True)])
+def test_the_charge_from_which_the_batteries_are_worth_changing(db, level, low):
+    assert Sensor(battery_level=level).battery_is_low() is low
+
+
+def test_a_sensor_that_said_nothing_of_its_batteries_is_not_judged(db):
+    assert Sensor(battery_level=None).battery_is_low() is None

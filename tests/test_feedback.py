@@ -30,6 +30,12 @@ def says(state, label='state'):
     return json.dumps({label: state})
 
 
+def dismiss_url(plug, kind=feedback.KIND_STATE):
+    """Where « c'est réglé » is posted for that plug and that kind."""
+    return reverse("dismiss_warning", kwargs={"subject": "actionner", "device_id": plug.pk,
+                                              "kind": kind})
+
+
 # --- Reading a state out of a payload ---
 
 @pytest.mark.parametrize("value", ["ON", "on", " On ", True, 1, "true", "yes"])
@@ -183,7 +189,7 @@ def test_a_message_is_read_for_the_plugs_too(listener, plug):
 
 def test_the_main_page_shows_nothing_without_a_disagreement(client, plug):
     content = client.get(reverse("growing_plants")).content.decode()
-    assert 'id="actionner-warnings"' in content
+    assert 'id="installation-warnings"' in content
     assert "C'est réglé" not in content
 
 
@@ -196,13 +202,13 @@ def test_the_main_page_shows_the_disagreement(client, plug):
 
 def test_the_banner_can_be_asked_for_on_its_own(client, plug):
     reports(plug, says("ON"))
-    content = client.get(reverse("actionner_warnings")).content.decode()
+    content = client.get(reverse("warnings")).content.decode()
     assert "Lampe UV du balcon" in content
 
 
 def test_the_user_settles_a_warning(client, plug):
     reports(plug, says("ON"))
-    response = client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk, "kind": "state"}))
+    response = client.post(dismiss_url(plug))
     assert response.status_code == 200
     assert feedback.standing() == []
     assert "C'est réglé" not in response.content.decode()
@@ -215,14 +221,14 @@ def test_settling_one_warning_leaves_the_others(client, plug, db):
                                      mqtt_topic_in="bonjour-plant/serre/brumisateur")
     reports(plug, says("ON"))
     feedback.check(other.mqtt_topic_in, says("ON"))
-    response = client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk, "kind": "state"}))
+    response = client.post(dismiss_url(plug))
     assert [warning['name'] for warning in feedback.standing()] == ["Brumisateur"]
     assert "Brumisateur" in response.content.decode()
 
 
 def test_a_warning_settled_comes_back_when_the_plug_drifts_again(client, plug):
     reports(plug, says("ON"))
-    client.post(reverse("dismiss_actionner_warning", kwargs={"actionner_id": plug.pk, "kind": "state"}))
+    client.post(dismiss_url(plug))
     reports(plug, says("ON"))
     assert len(feedback.standing()) == 1
 
@@ -236,10 +242,8 @@ def test_deleting_an_actionner_settles_its_warning(client, plug):
 def test_a_warning_of_a_deleted_actionner_cannot_be_settled(client, plug):
     plug.is_deleted = True
     plug.save()
-    assert client.post(reverse("dismiss_actionner_warning",
-                               kwargs={"actionner_id": plug.pk, "kind": "state"})).status_code == 404
+    assert client.post(dismiss_url(plug)).status_code == 404
 
 
 def test_a_kind_of_warning_that_does_not_exist_is_refused(client, plug):
-    assert client.post(reverse("dismiss_actionner_warning",
-                               kwargs={"actionner_id": plug.pk, "kind": "banane"})).status_code == 404
+    assert client.post(dismiss_url(plug, kind="banane")).status_code == 404

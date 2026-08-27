@@ -11,6 +11,7 @@ from paho.mqtt.enums import CallbackAPIVersion
 
 from core.app import app
 from plant_management.models import Sensor, SensorData
+from sync_worker import read_battery
 
 from . import feedback, state, watering
 from .broker import broker_from_url
@@ -71,9 +72,10 @@ class SensorListener:
         Records one measure per sensor listening on that topic, and returns them.
 
         A message on a topic no sensor claims any more is dropped, and so is a
-        message from a sensor assigned to no plant. The same message is read for
-        the actionners: a plug reporting a state it was not asked for is warned
-        about, whether or not a sensor made anything of it.
+        message from a sensor assigned to no plant — save for the charge it
+        reports of its own batteries, which is kept either way. The same message
+        is read for the actionners: a plug reporting a state it was not asked for
+        is warned about, whether or not a sensor made anything of it.
         """
         # The connection of this thread may have been left open for a long time.
         close_old_connections()
@@ -83,6 +85,9 @@ class SensorListener:
         for sensor in self.sensors():
             if not sensor.mqtt_topic or not topic_matches_sub(sensor.mqtt_topic, topic):
                 continue
+            # Before anything else: the batteries of a sensor are its own
+            # business, and are worth knowing about even when it watches nothing.
+            self.keep_the_battery(sensor, payload)
             if sensor.plant_id is None:
                 # logger.debug("Donnée ignorée sur " + topic + " : le capteur "
                 #              + sensor.name + " n'est assigné à aucune plante")
@@ -95,6 +100,22 @@ class SensorListener:
         # if not recorded:
         #     logger.debug("Aucun capteur assigné n'écoute " + topic + " : donnée abandonnée")
         return recorded
+
+    def keep_the_battery(self, sensor, payload):
+        """
+        Writes the charge that sensor reports of itself, and says whether it moved.
+
+        Written on the sensor rather than read back from its measures: a sensor
+        assigned to no plant records nothing, and its batteries run down all the
+        same. A payload that says nothing of the charge leaves the last one
+        known standing — silence is not an empty battery.
+        """
+        level = read_battery(sensor, payload)
+        if level is None or level == sensor.battery_level:
+            return False
+        sensor.battery_level = level
+        sensor.save(update_fields=['battery_level'])
+        return True
 
     # ── Keeping the subscriptions in step with the database ───
 

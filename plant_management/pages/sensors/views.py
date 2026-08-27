@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render
 from django.views import View
 
 from core.app import app
+from mqtt_worker import feedback
 from plant_management.models import Sensor
 
 from .forms import SensorForm
@@ -97,6 +98,8 @@ class SensorDelete(View):
         sensor = get_object_or_404(Sensor, pk=sensor_id, is_deleted=False)
         sensor.is_deleted = True
         sensor.save()
+        # Nobody is going to change the batteries of a sensor that is gone.
+        feedback.dismiss(sensor)
         logger.info("Le capteur " + sensor.name + " a été supprimé")
         response = HttpResponse(status=204)
         response['HX-Trigger'] = REFRESH_EVENT

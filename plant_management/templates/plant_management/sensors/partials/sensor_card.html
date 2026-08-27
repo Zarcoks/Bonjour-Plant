@@ -1,4 +1,4 @@
-{% comment %}Collapsed card: photo, name, model and the plant the sensor watches.{% endcomment %}
+{% comment %}Collapsed card: photo, name, model, batteries, and the plant it watches.{% endcomment %}
 <div class="col" id="sensor-{{ sensor.pk }}">
   <article class="plant-card"
            role="button" tabindex="0"
@@ -15,6 +15,22 @@
         <i class="bi bi-cpu"></i>
         {{ sensor.model }}
       </p>
+      {% comment %}
+        The charge the sensor last reported of itself, as the percentage it gave
+        and nothing else. A sensor that reports nothing of its batteries says so
+        too: better than a silent card.
+      {% endcomment %}
+      {% if sensor.battery_level is None %}
+        <p class="sensor-battery is-unknown">
+          <i class="bi bi-battery"></i>
+          Batterie inconnue
+        </p>
+      {% else %}
+        <p class="sensor-battery{% if sensor.battery_is_low %} is-low{% endif %}">
+          <i class="bi bi-battery"></i>
+          Batterie {{ sensor.battery_level }} %
+        </p>
+      {% endif %}
       <p class="sensor-assignment{% if not sensor.plant %} is-free{% endif %}">
         <i class="bi bi-{% if sensor.plant %}link-45deg{% else %}dash-circle{% endif %}"></i>
         {% if sensor.plant %}

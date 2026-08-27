@@ -246,8 +246,9 @@ def test_settling_one_kind_leaves_the_other(client, lamp, watched):
     lit(watched, "high+")
     check_the_actionners()
     feedback.warn(lamp, feedback.KIND_STATE, "se dit allumé")
-    client.post(reverse("dismiss_actionner_warning",
-                        kwargs={"actionner_id": lamp.pk, "kind": feedback.KIND_STATE}))
+    client.post(reverse("dismiss_warning",
+                        kwargs={"subject": "actionner", "device_id": lamp.pk,
+                                "kind": feedback.KIND_STATE}))
     assert [warning['kind'] for warning in feedback.standing()] == [feedback.KIND_EFFECT]
 
 

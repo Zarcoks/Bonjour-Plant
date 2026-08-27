@@ -1,11 +1,10 @@
-from django.http import Http404, HttpResponse
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views import View
 
 from core.app import app
 from mqtt_worker import feedback
-from mqtt_worker.feedback import WARNING_KINDS
 from mqtt_worker.tasks import switch_the_plugs
 from plant_management.models import ACT_ON_HUMIDITY, ACT_ON_LUMINOSITY, Actionner
 
@@ -164,40 +163,8 @@ class ActionnerDelete(View):
         actionner.is_deleted = True
         actionner.save()
         # Nobody is going to settle the warnings of a plug that is gone.
-        feedback.dismiss(actionner.pk)
+        feedback.dismiss(actionner)
         logger.info("L'actionneur " + actionner.name + " a été supprimé")
         response = HttpResponse(status=204)
         response['HX-Trigger'] = REFRESH_EVENT
         return response
-
-
-def warnings_banner(request):
-    """The warnings standing, as the main page shows them."""
-    return render(request, TEMPLATES + 'partials/warnings.html',
-                  {'warnings': feedback.standing()})
-
-
-class ActionnerWarnings(View):
-    """
-    What the plugs belie, asked for again every few seconds by the main page.
-
-    The answer comes from the cache the MQTT worker writes to, not from the
-    worker itself.
-    """
-
-    def get(self, request):
-        return warnings_banner(request)
-
-
-class DismissActionnerWarning(View):
-    """« C'est réglé » : the user takes one warning away, and that one only."""
-
-    def post(self, request, actionner_id, kind):
-        actionner = get_object_or_404(Actionner, pk=actionner_id, is_deleted=False)
-        if kind not in WARNING_KINDS:
-            raise Http404("Cet avertissement n'existe pas")
-        feedback.dismiss(actionner.pk, kind)
-        logger.info("L'écart de l'actionneur " + actionner.name
-                    + " a été réglé par l'utilisateur")
-        # The whole banner comes back: settling one warning leaves the others.
-        return warnings_banner(request)

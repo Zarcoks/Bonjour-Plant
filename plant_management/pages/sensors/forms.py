@@ -3,11 +3,13 @@ from django import forms
 from plant_management.models import GrowingPlant, Sensor
 from plant_management.widgets import PhotoInput
 
-# The keys the sensor reads its measures under, in the order the form shows them.
+# The keys the sensor reads itself under, in the order the form shows them: its
+# three measures, then the charge of its own batteries.
 PAYLOAD_LABEL_FIELDS = [
     'humidity_payload_label',
     'luminosity_payload_label',
     'temperature_payload_label',
+    'battery_payload_label',
 ]
 
 

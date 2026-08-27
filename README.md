@@ -12,6 +12,7 @@ simple comme bonjour.
 - `sync_worker/` : le worker qui recopie les mesures reçues sur les plantes
 - `decision_worker/` : le worker qui prend les décisions automatiques
 - `coherence_worker/` : le worker qui vérifie que les prises font ce qu'on leur demande
+- `battery_worker/` : le worker qui surveille les piles des capteurs
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
   Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
 - `plant_management/` : app métier
@@ -124,6 +125,8 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | URL | Nom | Rôle |
 | --- | --- | --- |
 | `/` | `growing_plants` | les plantes en cours de croissance, une carte par ligne |
+| `/warnings/` | `warnings` | ce qui ne colle pas dans l'installation, redemandé en HTMX |
+| `/warnings/<sujet>/<id>/<genre>/dismiss/` | `dismiss_warning` | POST : « c'est réglé », cet écart-là est retiré |
 | `/plants/create/` | `create_growing_plant` | GET : formulaire de création, POST : création |
 | `/plants/<id>/` | `growing_plant_detail` | GET : carte modifiable, POST : enregistrement |
 | `/plants/<id>/card/` | `growing_plant_card` | carte en lecture (sert aussi de « Annuler ») |
@@ -142,8 +145,6 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/sensors/<id>/delete/` | `delete_sensor` | POST : suppression, après confirmation |
 | `/actionners/` | `actionners` | la grille des actionneurs |
 | `/actionners/create/` | `create_actionner` | GET : formulaire de création, POST : création |
-| `/actionners/warnings/` | `actionner_warnings` | les prises qui démentent l'application, redemandé en HTMX |
-| `/actionners/<id>/warnings/<genre>/dismiss/` | `dismiss_actionner_warning` | POST : « c'est réglé », cet écart-là est retiré |
 | `/actionners/<id>/` | `actionner_detail` | GET : carte dépliée et modifiable, POST : enregistrement |
 | `/actionners/<id>/card/` | `actionner_card` | carte repliée (sert aussi de « Annuler ») |
 | `/actionners/<id>/switch/` | `switch_actionner` | POST : bascule la prise, et l'ordre part aussitôt |
@@ -228,12 +229,31 @@ grille se recharge. Supprimer une plante libère les capteurs qui la suivaient.
 ### Les clés du payload
 
 Deux capteurs ne nomment pas forcément leurs mesures pareil dans le JSON qu'ils
-publient. Chaque capteur porte donc trois champs texte, modifiables dans son
-interface : `humidity_payload_label`, `luminosity_payload_label` et
-`temperature_payload_label`. Ils valent `humidity`, `luminosity` et
-`temperature` par défaut ; un champ laissé vide reprend cette valeur à
-l'enregistrement, et les méthodes `get_*_label()` du modèle assurent le même
-repli pour une ligne écrite hors de l'interface.
+publient. Chaque capteur porte donc quatre champs texte, modifiables dans son
+interface : `humidity_payload_label`, `luminosity_payload_label`,
+`temperature_payload_label` et `battery_payload_label`. Ils valent `humidity`,
+`luminosity`, `temperature` et `battery` par défaut ; un champ laissé vide
+reprend cette valeur à l'enregistrement, et les méthodes `get_*_label()` du
+modèle assurent le même repli pour une ligne écrite hors de l'interface.
+
+### La batterie sur la carte
+
+Les capteurs disent aussi, dans le même payload, ce qu'il leur reste de
+batterie. Cette charge est écrite sur le capteur lui-même (`battery_level`, en
+pourcentage) par le worker MQTT, **à l'arrivée du message et avant tout le
+reste** : un capteur assigné à aucune plante ne garde aucune mesure, et ses
+piles s'usent tout autant. Un payload qui ne dit rien de la charge laisse la
+dernière connue en place — le silence n'est pas une pile vide — et une charge
+hors de l'échelle des pourcentages n'est pas une charge.
+
+La carte repliée en fait une ligne, sous le modèle : « Batterie 84 % », le
+pourcentage tel que le capteur l'a rapporté. **Rien n'est traduit** — ni palier,
+ni niveau, ni icône qui se remplit : la charge est un pourcentage, elle est
+affichée comme tel. La ligne passe simplement en terre cuite en dessous de
+`LOW_BATTERY` (10 %), le seul jugement porté sur la charge (`battery_is_low()`),
+et le bandeau de la page principale dit le reste. Un capteur qui n'a jamais parlé
+de ses piles affiche « Batterie inconnue » plutôt que rien : ne rien afficher
+laisserait croire à une carte sans information.
 
 ## Les actionneurs
 
@@ -323,16 +343,23 @@ qu'elle envoie. Supprimer un actionneur retire ses messages.
 
 Une prise peut démentir l'application de deux façons, et les deux tiennent en
 même temps : `state`, l'état qu'elle annonce (ci-dessus), et `effect`, l'effet
-qu'elle n'a pas (plus bas). Le cache porte donc **une entrée par actionneur et
-par genre**, chacune signalée et réglée séparément ; c'est le genre qui voyage
-dans l'URL de « C'est réglé ». Chaque avertissement porte la phrase à afficher,
-qui suit le nom de la prise sur la page comme dans le journal.
+qu'elle n'a pas (plus bas). Un capteur, lui, a un seul genre : `battery`, les
+piles qui s'épuisent. Le cache porte donc **une entrée par appareil et par
+genre**, chacune signalée et réglée séparément ; c'est le sujet (`actionner` ou
+`sensor`) et le genre qui voyagent dans l'URL de « C'est réglé ». Chaque
+avertissement porte la phrase à afficher, qui suit le nom de l'appareil sur la
+page comme dans le journal.
 
-Le bandeau vit en haut de la page « Mes plantes ». Il se redemande tout seul
-toutes les 15 secondes, en HTMX, donc une prise qui dérive pendant que la page
+`warn(appareil, genre, phrase)` se moque de ce qu'on lui passe : le sujet est lu
+sur le modèle de l'appareil lui-même, donc signaler quelque chose s'écrit pareil
+pour une prise et pour un capteur.
+
+Le bandeau vit en haut de la page « Mes plantes », dont il porte maintenant la
+route (`warnings`) : c'est la page qui le montre. Il se redemande tout seul
+toutes les 15 secondes, en HTMX, donc un appareil qui dérive pendant que la page
 est ouverte apparaît sans rechargement ; « C'est réglé » retire une ligne et
 renvoie le bandeau, les autres écarts restent. Les écarts sont lus depuis le
-cache en partant des actionneurs de la base croisés avec les genres — jamais en
+cache en partant des appareils de la base croisés avec leurs genres — jamais en
 listant le cache lui-même.
 
 ## Le worker MQTT
@@ -358,6 +385,11 @@ qui écoute ce topic, et le même message est relu pour les actionneurs qui
 rapportent sur ce topic. **Une donnée venant d'un capteur assigné à aucune plante
 est abandonnée**, comme celle d'un topic que plus aucun capteur ne réclame. Les
 topics à jokers (`bonjour-plant/+/humidity`) sont gérés.
+
+Une seule chose échappe à cette règle : la **charge de la batterie** que le
+capteur rapporte de lui-même, écrite sur le capteur avant même le test de
+l'assignation (voir « La batterie sur la carte »). Les piles d'un capteur sont
+son affaire, pas celle d'une plante.
 
 Les événements du worker — connexion, abonnements, déconnexions, erreurs — sont
 journalisés dans la base comme le reste de l'application. Les lignes de trafic
@@ -546,6 +578,33 @@ L'avertissement passe par le même cache que ceux du worker MQTT, sous le genre
 l'humidité ne monte pas (50 % puis 48 %) ». **Rien n'est basculé ici** : ce que
 font les prises est l'affaire de l'utilisateur, le worker se contente de dire ce
 qui ne colle pas.
+
+## Les piles des capteurs
+
+`battery_worker/` pose une question à part : les capteurs ont-ils encore de quoi
+parler ? Ce n'est pas une affaire de cohérence — rien n'est comparé à rien, et
+aucun capteur n'est démenti — d'où un worker à lui seul. La tâche
+`battery_worker.check_the_batteries` tourne toutes les `BATTERY_SECONDS`
+(3600 s par défaut) et passe en revue la charge que chaque capteur non supprimé a
+rapportée de lui-même. En dessous de `LOW_BATTERY` (10 %), un avertissement est
+déposé sous le genre `battery` :
+
+```
+Le capteur Luxmètre du salon n'a plus que 6 % de batterie : il est temps de
+changer ses piles
+```
+
+Une heure suffit : une pile s'use en semaines, et le capteur ne se taira pas
+entre deux passages. Un capteur qui n'a jamais rien dit de ses piles n'est pas
+même regardé — le silence n'est pas une pile vide — et un capteur assigné à
+aucune plante l'est comme les autres : ses piles sont son affaire, pas celle
+d'une plante. **Rien n'est écrit sur les capteurs ici** non plus : changer les
+piles est l'affaire de l'utilisateur, et l'avertissement tient jusqu'à ce qu'il
+appuie sur « C'est réglé ». Une pile changée ne retire donc pas le message
+d'elle-même, comme une prise rentrée dans le rang ne retire pas le sien.
+
+Le worker MQTT est le seul à écrire quelque chose sur les capteurs (la charge, à
+l'arrivée du message) ; celui-ci ne fait que la lire.
 
 ## Tests
 

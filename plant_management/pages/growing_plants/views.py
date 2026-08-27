@@ -1,5 +1,5 @@
 from django.db.models import F
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.views import View
 
@@ -70,6 +70,38 @@ class GrowingPlantList(View):
         # The banner keeps itself fresh afterwards: it is only seeded here.
         context['warnings'] = feedback.standing()
         return render(request, TEMPLATES + 'growing_plants.html', context)
+
+
+def warnings_banner(request):
+    """The warnings standing, as the main page shows them."""
+    return render(request, TEMPLATES + 'partials/warnings.html',
+                  {'warnings': feedback.standing()})
+
+
+class Warnings(View):
+    """
+    What the installation belies, asked for again every few seconds by the page.
+
+    The answer comes from the cache the workers write to, not from the workers
+    themselves: the plugs are read as their messages arrive, the sensors once an
+    hour, and the banner only shows what they left there.
+    """
+
+    def get(self, request):
+        return warnings_banner(request)
+
+
+class DismissWarning(View):
+    """« C'est réglé » : the user takes one warning away, and that one only."""
+
+    def post(self, request, subject, device_id, kind):
+        device = feedback.device_of(subject, device_id)
+        if device is None or kind not in feedback.kinds_of(subject):
+            raise Http404("Cet avertissement n'existe pas")
+        feedback.dismiss(device, kind)
+        logger.info("L'écart de " + device.name + " a été réglé par l'utilisateur")
+        # The whole banner comes back: settling one warning leaves the others.
+        return warnings_banner(request)
 
 
 class GrowingPlantCard(View):

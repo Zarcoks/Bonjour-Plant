@@ -1,0 +1,29 @@
+{% comment %}
+What does not add up in the installation — a plug that does not answer its
+orders, a sensor running out of batteries — shown on the main page until the
+user says each one is settled. The banner asks for itself again every few
+seconds, so that a device drifting while the page is open shows up on its own.
+{% endcomment %}
+<div id="installation-warnings" class="installation-warnings"
+     hx-get="{% url 'warnings' %}"
+     hx-trigger="every 15s"
+     hx-target="this"
+     hx-swap="outerHTML">
+  {% for warning in warnings %}
+    <article class="installation-warning">
+      <i class="bi bi-exclamation-triangle-fill installation-warning-sign"></i>
+      <p class="installation-warning-text">
+        <strong>{{ warning.name }}</strong> {{ warning.message }}.
+        <span class="installation-warning-when">Signalé il y a {{ warning.since|timesince }}</span>
+      </p>
+      <button class="btn-settled" type="button"
+              hx-post="{% url 'dismiss_warning' warning.subject warning.device warning.kind %}"
+              hx-target="#installation-warnings"
+              hx-swap="outerHTML"
+              hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        <i class="bi bi-check-lg"></i>
+        C'est réglé
+      </button>
+    </article>
+  {% endfor %}
+</div>

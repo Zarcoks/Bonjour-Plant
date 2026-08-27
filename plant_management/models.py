@@ -26,6 +26,14 @@ DEFAULT_HUMIDITY_LABEL = 'humidity'
 DEFAULT_LUMINOSITY_LABEL = 'luminosity'
 DEFAULT_TEMPERATURE_LABEL = 'temperature'
 
+# The key a sensor usually reports its own charge under. A sensor naming it
+# otherwise says so on its own field, like it does for its measures.
+DEFAULT_BATTERY_LABEL = 'battery'
+
+# From this charge down, the batteries of a sensor are worth changing: the
+# battery worker says so, once an hour, and the user settles it.
+LOW_BATTERY = 10
+
 # The key a plug usually reports its state under, and what it writes there. A
 # plug naming its state otherwise says so on its own field.
 DEFAULT_STATE_LABEL = 'state'
@@ -195,6 +203,13 @@ class Sensor(models.Model):
                                                 default=DEFAULT_LUMINOSITY_LABEL)
     temperature_payload_label = models.CharField("température (clé du payload)", max_length=120, blank=True,
                                                  default=DEFAULT_TEMPERATURE_LABEL)
+    battery_payload_label = models.CharField("batterie (clé du payload)", max_length=120, blank=True,
+                                             default=DEFAULT_BATTERY_LABEL)
+
+    # The charge the sensor last reported of itself, in percent. Written as the
+    # messages arrive, whatever plant the sensor watches: its batteries are its
+    # own business. None until it has said anything about them.
+    battery_level = models.IntegerField("batterie (%)", null=True, blank=True)
 
     class Meta:
         ordering = ['name']
@@ -217,6 +232,21 @@ class Sensor(models.Model):
 
     def get_temperature_label(self):
         return self.temperature_payload_label or DEFAULT_TEMPERATURE_LABEL
+
+    def get_battery_label(self):
+        return self.battery_payload_label or DEFAULT_BATTERY_LABEL
+
+    def battery_is_low(self):
+        """
+        Whether its batteries are worth changing, None while it has not said.
+
+        The only thing read into the charge: everywhere else — the card, the
+        journal — the percentage the sensor reported is given as it is. A sensor
+        that does not report its charge is not a sensor with an empty one.
+        """
+        if self.battery_level is None:
+            return None
+        return self.battery_level < LOW_BATTERY
 
 
 class Actionner(models.Model):

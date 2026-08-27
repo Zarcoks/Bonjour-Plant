@@ -138,6 +138,59 @@ def test_an_overlong_payload_is_cut_to_what_we_keep(listener, sensor, growing_pl
     assert len(SensorData.objects.get().payload) == MAX_PAYLOAD_LENGTH
 
 
+# --- The batteries the sensors report of themselves ---
+
+def test_the_charge_a_sensor_reports_is_written_on_it(listener, sensor, growing_plant):
+    sensor.plant = growing_plant
+    sensor.save()
+    listener.handle_message(sensor.mqtt_topic, '{"humidity": 71.5, "battery": 84}')
+    sensor.refresh_from_db()
+    assert sensor.battery_level == 84
+
+
+def test_the_charge_of_a_sensor_assigned_to_nothing_is_kept_all_the_same(listener, sensor):
+    assert sensor.plant is None
+    # Its measure is dropped, but its batteries run down just the same.
+    assert listener.handle_message(sensor.mqtt_topic, '{"battery": 42}') == []
+    sensor.refresh_from_db()
+    assert sensor.battery_level == 42
+
+
+def test_the_charge_is_read_with_the_key_of_its_sensor(listener, sensor):
+    sensor.battery_payload_label = "battery_level"
+    sensor.save()
+    listener.handle_message(sensor.mqtt_topic, '{"battery_level": 30, "battery": 90}')
+    sensor.refresh_from_db()
+    assert sensor.battery_level == 30
+
+
+def test_a_payload_saying_nothing_of_the_charge_leaves_the_last_one_known(listener, sensor):
+    listener.handle_message(sensor.mqtt_topic, '{"battery": 55}')
+    listener.handle_message(sensor.mqtt_topic, '{"humidity": 71.5}')
+    sensor.refresh_from_db()
+    # Silence is not an empty battery.
+    assert sensor.battery_level == 55
+
+
+@pytest.mark.parametrize("payload", ["pas du json", "[]", '{"battery": "vide"}',
+                                     '{"battery": 140}', '{"battery": -3}'])
+def test_a_charge_we_cannot_read_is_not_a_charge(listener, sensor, payload):
+    listener.handle_message(sensor.mqtt_topic, payload)
+    sensor.refresh_from_db()
+    assert sensor.battery_level is None
+
+
+def test_the_charge_of_a_sensor_nobody_listens_to_is_not_written(listener, sensor):
+    listener.handle_message("bonjour-plant/inconnu/truc", '{"battery": 12}')
+    sensor.refresh_from_db()
+    assert sensor.battery_level is None
+
+
+def test_a_charge_that_has_not_moved_is_not_written_again(listener, sensor):
+    assert listener.keep_the_battery(sensor, '{"battery": 61}')
+    assert not listener.keep_the_battery(sensor, '{"battery": 61}')
+
+
 # --- Keeping the subscriptions in step ---
 
 class FakeClient:

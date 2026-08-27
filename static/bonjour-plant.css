@@ -933,10 +933,10 @@ body {
   color: #fff;
 }
 
-/* ── What the plugs belie ─────────────────────────────────── */
-.actionner-warnings:not(:empty) { margin-bottom: 24px; }
+/* ── What does not add up in the installation ─────────────── */
+.installation-warnings:not(:empty) { margin-bottom: 24px; }
 
-.actionner-warning {
+.installation-warning {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -948,22 +948,22 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-.actionner-warning + .actionner-warning { margin-top: 10px; }
+.installation-warning + .installation-warning { margin-top: 10px; }
 
-.actionner-warning-sign {
+.installation-warning-sign {
   flex-shrink: 0;
   font-size: 1.25rem;
   color: #97710A;
 }
 
-.actionner-warning-text {
+.installation-warning-text {
   flex: 1 1 260px;
   margin: 0;
   color: #6B5107;
   font-size: .9rem;
 }
 
-.actionner-warning-when {
+.installation-warning-when {
   display: block;
   margin-top: 2px;
   font-size: .75rem;
@@ -1008,6 +1008,25 @@ body {
 
 .sensor-assignment.is-free { color: var(--gray-400); }
 .sensor-assignment.is-free i { color: var(--gray-300); }
+
+/* The charge the sensor reports of itself: green while it lasts, clay when its
+   batteries are worth changing, grey while it has said nothing of them. */
+.sensor-battery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0;
+  font-size: .85rem;
+  color: var(--gray-500);
+}
+
+.sensor-battery i { color: var(--plant-green); }
+
+.sensor-battery.is-low { color: var(--clay); font-weight: 500; }
+.sensor-battery.is-low i { color: var(--clay); }
+
+.sensor-battery.is-unknown { color: var(--gray-400); }
+.sensor-battery.is-unknown i { color: var(--gray-300); }
 
 /* ── Metrics page ─────────────────────────────────────────── */
 .plant-picker {

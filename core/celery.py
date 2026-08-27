@@ -13,9 +13,10 @@ app = Celery('bonjour_plant')
 #   should have a `CELERY_` prefix.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load task modules from all registered Django apps, and from both workers.
+# Load task modules from all registered Django apps, and from every worker.
 app.autodiscover_tasks()
-app.autodiscover_tasks(['mqtt_worker', 'sync_worker', 'decision_worker', 'coherence_worker'],
+app.autodiscover_tasks(['mqtt_worker', 'sync_worker', 'decision_worker', 'coherence_worker',
+                        'battery_worker'],
                        related_name='tasks')
 
 app.conf.timezone = 'Europe/Paris'
@@ -34,6 +35,11 @@ DECISION_SECONDS = int(os.environ.get("DECISION_SECONDS", 60))
 # How often the plugs are checked against the measures of their plant.
 COHERENCE_SECONDS = int(os.environ.get("COHERENCE_SECONDS", 300))
 
+# How often the batteries of the sensors are looked at. Longer than the rest on
+# purpose: a battery runs down over weeks, and an hour is more than enough to
+# hear about it before the sensor goes quiet.
+BATTERY_SECONDS = int(os.environ.get("BATTERY_SECONDS", 3600))
+
 app.conf.beat_schedule = {
     'sync_sensors_to_plants': {
         'task': 'sync_worker.sync_sensors_to_plants',
@@ -50,5 +56,9 @@ app.conf.beat_schedule = {
     'check_the_plugs': {
         'task': 'coherence_worker.check_the_plugs',
         'schedule': COHERENCE_SECONDS,
+    },
+    'check_the_batteries': {
+        'task': 'battery_worker.check_the_batteries',
+        'schedule': BATTERY_SECONDS,
     },
 }
