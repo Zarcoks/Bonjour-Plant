@@ -1045,7 +1045,7 @@ body {
   margin: 0;
 }
 
-.plant-picker .form-select { min-width: 220px; }
+.plant-picker .form-select { flex: 1 1 220px; min-width: 0; }
 
 /* ── The plant, above its curves ──────────────────────────── */
 .plant-summary {
@@ -1419,6 +1419,11 @@ body {
   .video-stage { grid-template-columns: 1fr; }
 }
 
+/* A track is as wide as what it holds unless it is told it may be narrower.
+   The addresses below break no line on their own: without this, one of them
+   widens its column, and the column widens the page. */
+.video-stage > * { min-width: 0; }
+
 .camera-rail {
   padding: 16px;
   background-color: #fff;
@@ -1449,6 +1454,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   border-radius: var(--radius-md);
   transition: background-color .18s ease;
 }
@@ -1572,6 +1578,7 @@ body {
 .video-address {
   font-size: .78rem;
   color: var(--gray-400);
+  overflow-wrap: anywhere;
 }
 
 .video-empty {
@@ -1584,6 +1591,7 @@ body {
 .plant-field-hint {
   font-size: .72rem;
   color: var(--gray-400);
+  overflow-wrap: anywhere;
 }
 
 /* ── The opened card of a plant ───────────────────────────────────────────── */
