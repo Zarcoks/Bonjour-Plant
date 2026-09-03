@@ -1,49 +1,41 @@
 {% extends "plant_management/index.html" %}
+{% load static %}
 {% block content %}
 <div class="page-wrapper">
 
   <div class="page-head">
     <div>
       <h1 class="page-title page-title-sm">Vidéo</h1>
-      <p class="page-subtitle">La dernière photo d'une caméra de l'installation.</p>
+      <p class="page-subtitle">Les caméras de l'installation, en direct.</p>
     </div>
-
-    {% comment %}
-      Picking another camera swaps the picture alone. The cameras of a model we
-      cannot photograph, and those that have not answered for a while, are
-      offered greyed out rather than hidden: they are still part of the
-      installation, they simply cannot be asked for a picture.
-    {% endcomment %}
-    <form class="video-picker"
-          hx-get="{% url 'video' %}"
-          hx-target="#video-photo"
-          hx-swap="innerHTML"
-          hx-trigger="change">
-      <label for="camera-picker">
-        <i class="bi bi-camera-video"></i>
-        Caméra
-      </label>
-      <select class="form-select form-select-sm" name="camera" id="camera-picker">
-        <option value="">Choisir une caméra…</option>
-        {% for choice in cameras %}
-          <option value="{{ choice.pk }}"
-                  {% if camera and choice.pk == camera.pk %}selected{% endif %}
-                  {% if not choice.can_be_photographed %}disabled{% endif %}>
-            {{ choice.name }}
-            {% if not choice.is_supported %}
-              — modèle non pris en charge
-            {% elif not choice.answered_recently %}
-              — hors ligne
-            {% endif %}
-          </option>
-        {% endfor %}
-      </select>
-    </form>
+    <button class="btn-plant" type="button"
+            hx-get="{% url 'create_camera' %}"
+            hx-target="#camera-form"
+            hx-swap="innerHTML">
+      <i class="bi bi-plus-lg"></i>
+      Ajouter une caméra
+    </button>
   </div>
 
-  <div id="video-photo">
-    {% include "plant_management/video/partials/photo.html" %}
+  <div id="camera-form"></div>
+
+  {% comment %}
+    The stage loads itself again on demand, which is how a deletion is taken
+    into account: the list loses its camera, and what plays is settled again.
+  {% endcomment %}
+  <div id="video-stage" class="video-stage"
+       hx-get="{% url 'video' %}"
+       hx-trigger="refresh-cameras from:body"
+       hx-target="#video-stage"
+       hx-swap="innerHTML">
+    {% include "plant_management/video/partials/stage.html" %}
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {# Deferred, both of them: the player is written after the reader it uses. #}
+  <script src="{% static 'hls.min.js' %}" defer></script>
+  <script src="{% static 'camera-player.js' %}" defer></script>
 {% endblock %}

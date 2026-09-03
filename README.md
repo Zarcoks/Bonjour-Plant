@@ -14,9 +14,11 @@ simple comme bonjour.
 - `coherence_worker/` : le worker qui vérifie que les prises font ce qu'on leur demande
 - `battery_worker/` : le worker qui surveille les piles des capteurs
 - `static/` : fichiers statiques généraux (design system `bonjour-plant.css`,
-  Bootstrap, Bootstrap Icons, HTMX, illustration par défaut)
+  Bootstrap, Bootstrap Icons, HTMX, hls.js et le lecteur des caméras,
+  illustration par défaut)
 - `plant_management/` : app métier
-  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `SensorData`, `Actionner`, `AppLog`
+  - `models.py` : `PlantType`, `GrowingPlant`, `Sensor`, `SensorData`, `Actionner`,
+    `Camera`, `AppLog`
   - `pages/<page>/` : un dossier par page, contenant ses `views.py`, `urls.py`
     et son `forms.py`
   - `templates/plant_management/<page>/` : les templates de la page, ses
@@ -149,6 +151,9 @@ qui ne passerait pas par la base. Les niveaux sont `DEBUG`, `INFO`, `WARNING` et
 | `/actionners/<id>/card/` | `actionner_card` | carte repliée (sert aussi de « Annuler ») |
 | `/actionners/<id>/switch/` | `switch_actionner` | POST : bascule la prise, et l'ordre part aussitôt |
 | `/actionners/<id>/delete/` | `delete_actionner` | POST : suppression, après confirmation |
+| `/video/` | `video` | les caméras de l'installation, et celle qu'on regarde |
+| `/video/create/` | `create_camera` | GET : formulaire d'ajout, POST : ajout |
+| `/video/<id>/delete/` | `delete_camera` | POST : suppression, après confirmation |
 | `/logs/` | `logs` | le journal de l'application, filtrable |
 | `/logs/topics/` | `mqtt_topics` | les topics MQTT écoutés en ce moment |
 
@@ -214,6 +219,21 @@ bouton demande confirmation (`hx-confirm`), puis la réponse ne remplace rien :
 elle renvoie l'en-tête `HX-Trigger: refresh-plants`, sur lequel la page recharge
 sa liste — ce qui garde le filtre et l'ordre justes. La **création** répond avec
 la liste entière, pour que la nouvelle plante se place à sa date.
+
+## La carte dépliée d'une plante
+
+Cliquer sur une plante déplie sa carte. On y trouve, dans cet ordre :
+
+1. **le flux de sa caméra**, en grand, quand une caméra lui est assignée — joué
+   par le même lecteur que la page vidéo, démarré au swap HTMX et détruit dès
+   que la carte se referme ;
+2. **ses dernières mesures** en grand : humidité, lumière, température, aux
+   couleurs des courbes de la page métriques ;
+3. **ses champs modifiables**, photo, signes et boutons compris, comme avant.
+
+Une plante récoltée n'affiche pas de mesures, comme sur sa carte repliée. La
+carte repliée, elle, ne joue rien : un lecteur par plante sur une page qui en
+liste dix tirerait dix flux du Raspberry Pi pour rien.
 
 ## Les capteurs
 
@@ -361,6 +381,64 @@ est ouverte apparaît sans rechargement ; « C'est réglé » retire une ligne e
 renvoie le bandeau, les autres écarts restent. Les écarts sont lus depuis le
 cache en partant des appareils de la base croisés avec leurs genres — jamais en
 listant le cache lui-même.
+
+## La page vidéo
+
+La page `/video/` montre les caméras de l'installation en direct : la liste à
+gauche, celle qu'on regarde à droite. Une caméra se déclare avec deux choses, un
+nom et l'adresse de son flux :
+
+```
+Caméra du balcon    http://192.168.1.42:8888/balcon/index.m3u8
+```
+
+L'adresse attendue est **celle du flux HLS republié par le Raspberry Pi**, pas
+celle de la caméra. C'est MediaMTX, sur le Pi, qui va chercher la caméra en RTSP
+sur le réseau local et rediffuse son flux en HLS ; l'application ne connaît que
+cette rediffusion, et la caméra n'est jamais jointe directement.
+
+C'est du HLS qui est joué, et non du RTSP, parce qu'aucun navigateur ne lit le
+RTSP : le HLS n'est qu'une playlist servie en HTTP, qu'une balise `<video>`
+consomme. Et plutôt que du WebRTC, parce que sur un réseau overlay comme NetBird
+la négociation ICE demande à MediaMTX de connaître ses propres adresses sur
+l'overlay, là où le HLS n'est que du HTTP. Quelques secondes de latence en plus,
+et une page qui marche partout où le Pi est joignable.
+
+### Une caméra peut suivre une plante
+
+Comme un capteur ou une prise, une caméra s'assigne à une plante — ou à aucune.
+La caméra assignée est celle dont le flux s'affiche sur la carte de la plante,
+page « Mes plantes » ; si plusieurs caméras suivent la même plante, la première
+par ordre alphabétique est celle qui est jouée. Supprimer une plante libère ses
+caméras comme elle libère ses capteurs et ses prises.
+
+### Ce qui est vérifié de l'adresse
+
+Deux choses seulement, celles sans lesquelles un navigateur ne peut rien : un
+schéma qu'il sait suivre (`http://` ou `https://` — une adresse `rtsp://` est ce
+que MediaMTX lit, pas ce qu'il sert) et une machine où aller. Le reste est
+enregistré tel quel, `index.m3u8` compris ou non : c'est l'adresse à laquelle on
+regarde le flux, et celui qui la saisit est celui qui sait à quoi elle
+ressemble.
+
+### Le lecteur
+
+La lecture est faite par `hls.js` (`static/camera-player.js`), sauf sur Safari
+qui lit le HLS tout seul et mieux. Un lecteur est démarré après chaque swap
+HTMX, et détruit dès que sa balise `<video>` a quitté la page : un lecteur que
+personne ne regarde continuerait sinon à tirer le flux du Raspberry Pi. Un flux
+en direct méritant qu'on insiste, une erreur fatale est retentée trois fois
+(`startLoad` pour le réseau, `recoverMediaError` pour le média) avant que le
+cadre n'affiche que le flux n'arrive pas ; le compteur repart à zéro dès qu'un
+fragment est de nouveau lu. Le bouton « Relancer » redemande le flux.
+
+### Ce que la page fait sans se recharger
+
+Comme partout ailleurs, tout passe par HTMX. Choisir une caméra, en ajouter une
+ou en supprimer une remplace le même bloc — la liste et l'image ensemble — ce qui
+règle d'un coup le cas de la caméra supprimée pendant qu'on la regardait.
+L'ajout répond avec la nouvelle caméra en train de jouer, plus un swap *out of
+band* qui referme le formulaire.
 
 ## Le worker MQTT
 

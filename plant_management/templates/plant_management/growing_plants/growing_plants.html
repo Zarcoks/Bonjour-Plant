@@ -1,4 +1,5 @@
 {% extends "plant_management/index.html" %}
+{% load static %}
 {% block content %}
 <div class="page-wrapper">
 
@@ -45,4 +46,10 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {# Deferred, both of them: the player is written after the reader it uses. #}
+  <script src="{% static 'hls.min.js' %}" defer></script>
+  <script src="{% static 'camera-player.js' %}" defer></script>
 {% endblock %}

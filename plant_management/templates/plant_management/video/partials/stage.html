@@ -1,0 +1,50 @@
+{% comment %}
+The cameras to pick from, and the one playing. Rendered on its own so that
+picking another camera, adding one or deleting one all swap the same block.
+{% endcomment %}
+<aside class="camera-rail">
+  <p class="camera-rail-title">
+    <i class="bi bi-camera-video"></i>
+    Caméras
+  </p>
+
+  {% for choice in cameras %}
+    <div class="camera-choice{% if camera and choice.pk == camera.pk %} is-watched{% endif %}">
+      <button class="camera-choice-pick" type="button"
+              hx-get="{% url 'video' %}?camera={{ choice.pk }}"
+              hx-target="#video-stage"
+              hx-swap="innerHTML">
+        <span class="camera-choice-name">
+          <span class="camera-dot"></span>
+          {{ choice.name }}
+        </span>
+        <span class="camera-choice-address" title="{{ choice.stream_url }}">{{ choice.stream_url }}</span>
+      </button>
+      {# The form comes back filled with this camera, where a new one is written. #}
+      <button class="camera-choice-act" type="button"
+              hx-get="{% url 'edit_camera' choice.pk %}"
+              hx-target="#camera-form"
+              hx-swap="innerHTML"
+              aria-label="Modifier {{ choice.name }}">
+        <i class="bi bi-pencil"></i>
+      </button>
+      {# Nothing is swapped here: the answer asks the page to load its cameras again. #}
+      <button class="camera-choice-act camera-choice-delete" type="button"
+              hx-post="{% url 'delete_camera' choice.pk %}"
+              hx-swap="none"
+              hx-confirm="Êtes-vous sûr de vouloir supprimer {{ choice.name }} ?"
+              hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+              aria-label="Supprimer {{ choice.name }}">
+        <i class="bi bi-trash3"></i>
+      </button>
+    </div>
+  {% empty %}
+    <p class="camera-rail-empty">
+      Aucune caméra déclarée pour l'instant.
+    </p>
+  {% endfor %}
+</aside>
+
+<div class="camera-view">
+  {% include "plant_management/video/partials/player.html" %}
+</div>

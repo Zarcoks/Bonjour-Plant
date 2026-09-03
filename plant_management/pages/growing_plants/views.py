@@ -171,10 +171,11 @@ class GrowingPlantDelete(View):
         plant = get_object_or_404(GrowingPlant, pk=plant_id, is_deleted=False)
         plant.is_deleted = True
         plant.save()
-        # Its sensors and its actionners go back to the free ones: the forms only
-        # offer the plants that are still there, so an assignment left pointing at
-        # a deleted plant would be silently dropped on the next edition.
-        freed = plant.sensors.update(plant=None) + plant.actionners.update(plant=None)
+        # Its sensors, its actionners and its cameras go back to the free ones: the
+        # forms only offer the plants that are still there, so an assignment left
+        # pointing at a deleted plant would be silently dropped on the next edition.
+        freed = (plant.sensors.update(plant=None) + plant.actionners.update(plant=None)
+                 + plant.cameras.update(plant=None))
         logger.info("La plante " + plant.display_name + " a été supprimée, "
                     + str(freed) + " appareil(s) libéré(s)")
         response = HttpResponse(status=204)

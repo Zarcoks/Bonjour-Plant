@@ -5,7 +5,7 @@ import pytest
 from PIL import Image
 from paho.mqtt import publish as mqtt_publish
 
-from plant_management.models import Actionner, GrowingPlant, PlantType, Sensor
+from plant_management.models import Actionner, Camera, GrowingPlant, PlantType, Sensor
 
 
 @pytest.fixture(autouse=True)
@@ -142,5 +142,23 @@ def actionner_payload():
         'act_on': "humidity",
         'mqtt_topic_out': "bonjour-plant/serre/brumisateur/set",
         'mqtt_topic_in': "bonjour-plant/serre/brumisateur",
+        'plant': "",
+    }
+
+
+@pytest.fixture
+def camera(db):
+    """A camera as MediaMTX republishes it: the address is the one of the Pi."""
+    return Camera.objects.create(
+        name="Caméra du balcon",
+        stream_url="http://192.168.1.42:8888/balcon/index.m3u8",
+    )
+
+
+@pytest.fixture
+def camera_payload():
+    return {
+        'name': "Caméra de la serre",
+        'stream_url': "http://192.168.1.42:8888/serre/index.m3u8",
         'plant': "",
     }

@@ -6,6 +6,7 @@ urlpatterns = [
     path("plant-types/", include("plant_management.pages.plant_types.urls")),
     path("sensors/", include("plant_management.pages.sensors.urls")),
     path("actionners/", include("plant_management.pages.actionners.urls")),
+    path("video/", include("plant_management.pages.video.urls")),
     path("metrics/", include("plant_management.pages.metrics.urls")),
     path("logs/", include("plant_management.pages.logs.urls")),
 ]

@@ -487,3 +487,75 @@ def test_the_measures_wear_the_colours_of_the_curves(client, growing_plant):
     content = client.get(reverse("growing_plants")).content.decode()
     for reading in ['reading-humidity', 'reading-light', 'reading-temperature']:
         assert reading in content
+
+
+# ── What the opened card shows of a plant ─────────────────────────────────────
+
+def test_the_opened_card_plays_the_camera_of_the_plant(client, growing_plant, camera):
+    camera.plant = growing_plant
+    camera.save()
+    content = client.get(reverse("growing_plant_detail",
+                                 kwargs={"plant_id": growing_plant.pk})).content.decode()
+    assert 'data-hls="http://192.168.1.42:8888/balcon/index.m3u8"' in content
+    # The picture comes first, then the measures, then what there is to change.
+    assert content.index('data-hls') < content.index('card-readings-large') < content.index('name="display_name"')
+
+
+def test_the_opened_card_of_a_plant_without_a_camera_plays_nothing(client, growing_plant):
+    content = client.get(reverse("growing_plant_detail",
+                                 kwargs={"plant_id": growing_plant.pk})).content.decode()
+    assert 'data-hls' not in content
+    # The measures and the fields are there all the same.
+    assert 'card-readings-large' in content and 'name="display_name"' in content
+
+
+def test_the_collapsed_card_plays_nothing(client, growing_plant, camera):
+    camera.plant = growing_plant
+    camera.save()
+    content = client.get(reverse("growing_plant_card",
+                                 kwargs={"plant_id": growing_plant.pk})).content.decode()
+    assert 'data-hls' not in content
+
+
+def test_the_opened_card_drops_the_photo(client, growing_plant):
+    """
+    The photo pictures the plant type, not this plant, and nothing on the card
+    changes it: opened, the card gives its column to the fields instead.
+    """
+    opened = client.get(reverse("growing_plant_detail",
+                                kwargs={"plant_id": growing_plant.pk})).content.decode()
+    collapsed = client.get(reverse("growing_plant_card",
+                                   kwargs={"plant_id": growing_plant.pk})).content.decode()
+    assert growing_plant.get_photo_url() in collapsed
+    assert growing_plant.get_photo_url() not in opened
+
+
+def test_the_opened_card_still_says_which_plant_it_is(client, growing_plant):
+    content = client.get(reverse("growing_plant_detail",
+                                 kwargs={"plant_id": growing_plant.pk})).content.decode()
+    # The name and the type were on the photo's side of the card: they moved up.
+    assert growing_plant.display_name in content
+    assert growing_plant.plant_type.plant_name in content
+
+
+def test_the_opened_card_keeps_the_growing_bar(client, growing_plant):
+    """Opening a plant to change a date should not take away what one came to see."""
+    content = client.get(reverse("growing_plant_detail",
+                                 kwargs={"plant_id": growing_plant.pk})).content.decode()
+    assert 'growing-card-progress' in content
+
+
+def test_the_opened_card_keeps_the_signs(client, growing_plant):
+    """The signs were laid over the photo, and follow the name rather than it."""
+    growing_plant.current_humidity = 1
+    growing_plant.save()
+    assert growing_plant.needs_water
+    content = client.get(reverse("growing_plant_detail",
+                                 kwargs={"plant_id": growing_plant.pk})).content.decode()
+    assert 'plant-sign-water' in content
+
+
+def test_a_harvested_plant_shows_no_measures(client, harvested_plant):
+    content = client.get(reverse("growing_plant_detail",
+                                 kwargs={"plant_id": harvested_plant.pk})).content.decode()
+    assert 'card-readings-large' not in content

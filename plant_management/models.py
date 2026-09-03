@@ -119,6 +119,15 @@ class GrowingPlant(models.Model):
         """A growing plant is pictured by its type, which falls back to the default illustration."""
         return self.plant_type.get_photo_url()
 
+    def camera(self):
+        """
+        The camera watching this plant, None when none is assigned to it.
+
+        One picture is shown of a plant, so one camera is read: given several,
+        the first by name is the one the card plays.
+        """
+        return self.cameras.filter(is_deleted=False).first()
+
     def has_light_actionner(self):
         """Whether anything of this plant can be lit at all."""
         return self.actionners.filter(is_deleted=False, act_on=ACT_ON_LUMINOSITY).exists()
@@ -293,6 +302,32 @@ class Actionner(models.Model):
         outside the interface still reads and reports its state.
         """
         return self.state_payload_label or DEFAULT_STATE_LABEL
+
+
+class Camera(models.Model):
+    """
+    A camera of the installation, under the address its stream is watched on.
+
+    What is declared here is never the camera itself: the Raspberry Pi pulls the
+    feed on the local network and publishes it again, in HLS, and the address
+    the application is given is that one. The camera stays where it is, behind
+    the network, and nothing of it reaches a cloud.
+
+    HLS is what a browser can play — a plain playlist over HTTP, `<video>` and
+    nothing else — which is why the address is the one MediaMTX serves and not
+    the RTSP feed underneath it.
+    """
+    name = models.CharField("nom", max_length=120)
+    stream_url = models.CharField("adresse du flux", max_length=300)
+    is_deleted = models.BooleanField(default=False)
+    plant = models.ForeignKey(GrowingPlant, verbose_name="assigné à", on_delete=models.SET_NULL,
+                              null=True, blank=True, related_name='cameras')
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class SensorData(models.Model):

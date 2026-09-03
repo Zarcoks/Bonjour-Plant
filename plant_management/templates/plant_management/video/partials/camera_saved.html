@@ -1,0 +1,6 @@
+{% comment %}
+Answer to a camera written, added or changed: the stage comes back with that
+camera playing, while the out of band swap closes the form above it.
+{% endcomment %}
+{% include "plant_management/video/partials/stage.html" %}
+<div id="camera-form" hx-swap-oob="innerHTML"></div>

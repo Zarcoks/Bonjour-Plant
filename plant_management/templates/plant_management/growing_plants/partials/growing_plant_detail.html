@@ -1,63 +1,126 @@
-{% comment %}The same card, with the editable fields of the plant.{% endcomment %}
+{% comment %}
+The card of a plant, opened: what there is to see of it, then what there is to
+change.
+
+The photo of the collapsed card is not carried over. It pictures the plant type
+and not this plant, nothing here changes it, and it took the width the fields
+needed. What stands in its place is the live picture, when a camera watches the
+plant — and nothing at all when none does.
+{% endcomment %}
 <article class="growing-card is-open" id="growing-plant-{{ plant.pk }}">
   <form hx-post="{% url 'growing_plant_detail' plant.pk %}"
         hx-target="#growing-plant-{{ plant.pk }}"
         hx-swap="outerHTML">
     {% csrf_token %}
 
+    {% comment %}
+      Opened, the card keeps saying which plant it is: the name moves up into
+      the band, and the signs move with it — they were laid over the photo.
+    {% endcomment %}
     <header class="growing-card-head">
-      <span><i class="bi bi-pencil"></i> Modifier la plante</span>
+      <span class="growing-open-name">
+        <i class="bi bi-pencil"></i>
+        <strong>{{ plant.display_name }}</strong>
+        {% if plant.harvested %}
+          <span class="growing-open-type">récoltée</span>
+        {% else %}
+          <span class="growing-open-type">{{ plant.plant_type.plant_name }}</span>
+        {% endif %}
+      </span>
+      {% if not plant.harvested %}
+        <span class="growing-open-signs">
+          {% include "plant_management/growing_plants/partials/growing_plant_signs.html" %}
+        </span>
+      {% endif %}
     </header>
 
-    <div class="growing-card-main">
-      <div class="growing-card-media">
-        <img src="{{ plant.get_photo_url }}" alt="{{ plant.display_name }}">
-        {% if not plant.harvested %}
-          {% include "plant_management/growing_plants/partials/growing_plant_signs.html" %}
-        {% endif %}
+    {% if plant.camera %}
+      {% comment %}
+        The stream of the camera assigned to this plant, played the same way as
+        on the video page — the player starts itself as soon as the card is
+        swapped in, and is destroyed when the card closes again.
+      {% endcomment %}
+      <figure class="growing-card-live">
+        <video class="camera-player"
+               data-hls="{{ plant.camera.stream_url }}"
+               autoplay muted playsinline controls></video>
+        <div class="video-unavailable" hidden>
+          <i class="bi bi-camera-video-off"></i>
+          <p>Le flux de {{ plant.camera.name }} n'arrive pas.</p>
+          <span>Vérifiez que la caméra est branchée et que le flux est bien publié.</span>
+        </div>
+        <figcaption>
+          <span class="camera-dot"></span>
+          {{ plant.camera.name }}
+        </figcaption>
+      </figure>
+    {% endif %}
+
+    {% comment %}
+      What the plant is measured at, in the large: the same three measures as on
+      the collapsed card, given the room to be read across the table.
+    {% endcomment %}
+    {% if not plant.harvested %}
+      <div class="card-readings-large">
+        {% include "plant_management/growing_plants/partials/growing_plant_readings.html" %}
+      </div>
+    {% endif %}
+
+    <div class="growing-card-body">
+      <div class="plant-field-grid plant-field-grid-wide">
+        {% for field in form %}
+          {% if field.name != 'harvested' %}
+            <div class="plant-field">
+              <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+              {{ field }}
+              {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
       </div>
 
-      <div class="growing-card-body">
-        <div class="plant-field-grid plant-field-grid-wide">
-          {% for field in form %}
-            {% if field.name != 'harvested' %}
-              <div class="plant-field">
-                <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
-                {{ field }}
-                {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
-              </div>
-            {% endif %}
-          {% endfor %}
-        </div>
+      <label class="harvested-check" for="{{ form.harvested.id_for_label }}">
+        {{ form.harvested }}
+        <span><i class="bi bi-basket2"></i> {{ form.harvested.label|capfirst }}</span>
+      </label>
+      {% for error in form.harvested.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
 
-        <label class="harvested-check" for="{{ form.harvested.id_for_label }}">
-          {{ form.harvested }}
-          <span><i class="bi bi-basket2"></i> {{ form.harvested.label|capfirst }}</span>
-        </label>
-        {% for error in form.harvested.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
-
-        <div class="card-actions">
-          {# Nothing is swapped here: the answer asks the page to load its list again. #}
-          <button class="btn-danger-ghost" type="button"
-                  hx-post="{% url 'delete_growing_plant' plant.pk %}"
-                  hx-swap="none"
-                  hx-confirm="Êtes-vous sûr de vouloir supprimer {{ plant.display_name }} ?">
-            <i class="bi bi-trash3"></i>
-            Supprimer
-          </button>
-          <span class="card-actions-spacer"></span>
-          <button class="btn-ghost" type="button"
-                  hx-get="{% url 'growing_plant_card' plant.pk %}"
-                  hx-target="#growing-plant-{{ plant.pk }}"
-                  hx-swap="outerHTML">
-            Annuler
-          </button>
-          <button class="btn-plant" type="submit">
-            <i class="bi bi-check-lg"></i>
-            Valider
-          </button>
-        </div>
+      <div class="card-actions">
+        {# Nothing is swapped here: the answer asks the page to load its list again. #}
+        <button class="btn-danger-ghost" type="button"
+                hx-post="{% url 'delete_growing_plant' plant.pk %}"
+                hx-swap="none"
+                hx-confirm="Êtes-vous sûr de vouloir supprimer {{ plant.display_name }} ?">
+          <i class="bi bi-trash3"></i>
+          Supprimer
+        </button>
+        <span class="card-actions-spacer"></span>
+        <button class="btn-ghost" type="button"
+                hx-get="{% url 'growing_plant_card' plant.pk %}"
+                hx-target="#growing-plant-{{ plant.pk }}"
+                hx-swap="outerHTML">
+          Annuler
+        </button>
+        <button class="btn-plant" type="submit">
+          <i class="bi bi-check-lg"></i>
+          Valider
+        </button>
       </div>
     </div>
+
+    {% comment %}
+      The growing bar stays under the opened card too: opening a plant to change
+      a date should not take away what one came to look at.
+    {% endcomment %}
+    <footer class="growing-card-progress">
+      <div class="growing-progress-head">
+        <span>Croissance</span>
+        <strong>{{ plant.growing_state }} %</strong>
+      </div>
+      <div class="growing-progress-track" role="progressbar" aria-valuenow="{{ plant.growing_state }}"
+           aria-valuemin="0" aria-valuemax="100">
+        <div class="growing-progress-bar" style="width: {{ plant.growing_state }}%;"></div>
+      </div>
+    </footer>
   </form>
 </article>

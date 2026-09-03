@@ -1,0 +1,53 @@
+{% comment %}
+The form of a camera, loaded above the stage. The same one writes a new camera
+and changes one already declared: what it is given, `camera`, is what tells the
+two apart — where it posts, and what it says it is doing.
+{% endcomment %}
+<div class="plant-form-card">
+  <form hx-post="{% if camera %}{% url 'edit_camera' camera.pk %}{% else %}{% url 'create_camera' %}{% endif %}"
+        hx-target="#video-stage"
+        hx-swap="innerHTML">
+    {% csrf_token %}
+
+    <h2 class="plant-form-title">
+      {% if camera %}
+        <i class="bi bi-pencil"></i>
+        Modifier {{ camera.name }}
+      {% else %}
+        <i class="bi bi-camera-video"></i>
+        Nouvelle caméra
+      {% endif %}
+    </h2>
+
+    <div class="plant-field-grid plant-field-grid-wide">
+      {% for field in form %}
+        <div class="plant-field">
+          <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="plant-field-hint">{{ field.help_text }}</span>{% endif %}
+          {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if form.non_field_errors %}
+      <div class="field-error">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <p class="plant-form-note">
+      <i class="bi bi-info-circle"></i>
+      L'adresse attendue est celle du flux HLS republié par le Raspberry Pi, pas celle de la caméra.
+    </p>
+
+    <div class="card-actions">
+      <button class="btn-ghost" type="button"
+              onclick="document.getElementById('camera-form').innerHTML = '';">
+        Annuler
+      </button>
+      <button class="btn-plant" type="submit">
+        <i class="bi bi-check-lg"></i>
+        {% if camera %}Valider{% else %}Ajouter{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
